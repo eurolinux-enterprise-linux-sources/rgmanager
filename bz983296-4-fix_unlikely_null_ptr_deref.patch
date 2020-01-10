@@ -1,0 +1,40 @@
+From 0efeee14d06aefef5445a6219120eb1edaf7df20 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 12 Jul 2013 15:46:27 -0400
+Subject: [PATCH] rgmanager: Fix unlikely NULL ptr deref
+
+Fix a couple of places where a very unlikely null pointer
+dereference could occur.
+
+Related: rhbz#983296
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/clulib/vft.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/rgmanager/src/clulib/vft.c b/rgmanager/src/clulib/vft.c
+index ad1f468..80f1e86 100644
+--- a/rgmanager/src/clulib/vft.c
++++ b/rgmanager/src/clulib/vft.c
+@@ -498,6 +498,9 @@ vf_buffer_join_msg(vf_msg_t *hdr, struct timeval *timeout)
+ 		      hdr->vm_msg.vf_view, 
+ 		      hdr->vm_msg.vf_data, hdr->vm_msg.vf_datalen);
+ 
++	if (!newp)
++		return 0;
++
+ 	if (timeout && (timeout->tv_sec || timeout->tv_usec)) {
+ 		if (getuptime(&newp->vn_timeout) == -1) {
+ 			/* XXX What do we do here? */
+@@ -782,6 +785,7 @@ vf_try_commit(key_node_t *key_node)
+ 	 */
+ 	if (key_node->kn_data == NULL) {
+ 		fprintf (stderr, "malloc fail err=%d\n", errno);
++		key_node->kn_datalen = 0;
+ 		return -1;
+ 	}
+ 
+-- 
+1.8.3.1
+

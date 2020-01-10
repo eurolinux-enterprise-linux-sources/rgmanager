@@ -1,0 +1,61 @@
+From 060d4274070d74cfd80761d0d9193e0e7519464d Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 12 Jul 2013 15:42:45 -0400
+Subject: [PATCH] rgmanager: Don't destroy locked mutexes
+
+Unlock locked mutexes before calling pthread_mutex_destroy()
+on them.
+
+Related: rhbz#983296
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/clulib/libcpglock.c |  1 +
+ rgmanager/src/daemons/rg_thread.c | 18 +++++-------------
+ 2 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/rgmanager/src/clulib/libcpglock.c b/rgmanager/src/clulib/libcpglock.c
+index f99edd4..75fc9f6 100644
+--- a/rgmanager/src/clulib/libcpglock.c
++++ b/rgmanager/src/clulib/libcpglock.c
+@@ -279,6 +279,7 @@ cpg_lock_fin(void *handle)
+ 
+ 	close(h->fd);
+ 
++	pthread_mutex_unlock(&h->mutex);
+ 	pthread_mutex_destroy(&h->mutex);
+ 	free(h);
+ 	return 0;
+diff --git a/rgmanager/src/daemons/rg_thread.c b/rgmanager/src/daemons/rg_thread.c
+index b888717..c08d8aa 100644
+--- a/rgmanager/src/daemons/rg_thread.c
++++ b/rgmanager/src/daemons/rg_thread.c
+@@ -530,20 +530,12 @@ resgroup_thread_main(void *arg)
+ 		raise(SIGSEGV);
+ 	}
+ 
++	pthread_mutex_unlock(&my_queue_mutex);
+ 	mystatus = pthread_mutex_destroy(&my_queue_mutex);
+-	if (mystatus != 0)
+-	{
+-		if (mystatus == EBUSY) {
+-			pthread_mutex_unlock(&my_queue_mutex);
+-		}
+-
+-		mystatus = pthread_mutex_destroy(&my_queue_mutex);
+-		if (mystatus != 0) {
+-			fprintf (stderr, "mutex_destroy=%d err=%d %p\n", 
+-			    mystatus, errno, &my_queue_mutex);
+-
+-			fflush (stderr);
+-		}
++	if (mystatus != 0) {
++		fprintf(stderr, "mutex_destroy=%d err=%d %p\n", 
++		    mystatus, errno, &my_queue_mutex);
++		fflush (stderr);
+ 	}
+ 
+ 	list_remove(&resthread_list, myself);
+-- 
+1.8.3.1
+

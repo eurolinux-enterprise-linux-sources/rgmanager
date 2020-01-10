@@ -1,0 +1,74 @@
+From 32f3bbc58694b22ce2e672ed0b93c8c205d54f8d Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Wed, 4 Jan 2012 23:01:07 -0500
+Subject: [PATCH] rgmanager: Avoid duplicate restart of service
+
+If B depends on A and both A and B are running on
+node 1 and node 1 fails, the stop events generated
+will inadvertently cause B to be restarted after
+the initial failover.
+
+This patch resolves this issue by comparing the
+start times in central_processing mode.
+
+A known limitation to this patch is that in order
+for this patch to work correctly, the cluster nodes'
+time must be approximately in sync.
+
+Resolves: rhbz#743218
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/resources/default_event_script.sl |   19 ++++++++++++++++++-
+ 1 files changed, 18 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/resources/default_event_script.sl b/rgmanager/src/resources/default_event_script.sl
+index 759215c..763201d 100644
+--- a/rgmanager/src/resources/default_event_script.sl
++++ b/rgmanager/src/resources/default_event_script.sl
+@@ -463,6 +463,8 @@ define default_service_event_handler()
+ 	variable tmp;
+ 	variable owner;
+ 	variable state;
++	variable d_trans, s_trans;
++	variable s_state;
+ 
+ 	debug("Executing default service event handler");
+ 
+@@ -517,17 +519,32 @@ define default_service_event_handler()
+ 			continue;
+ 		}
+ 
+-		(,,, owner, state) = service_status(services[x]);
++		(d_trans,,,, owner, state) = service_status(services[x], 1);
+ 		if ((service_state == "started") and (owner < 0) and
+ 		    (state == "stopped")) {
+ 			info("Dependency met; starting ", services[x]);
+ 			nodes = allowed_nodes(services[x]);
+ 			()=move_or_start(services[x], nodes);
++			continue;
+ 		}
+ 
+ 		% service died - stop service(s) that depend on the dead
+ 		if ((service_owner < 0) and (owner >= 0) and
+ 		    (depend_mode != "soft")) {
++
++			% grab the -current- state of the service here
++			% If the service is running, and its dependent service
++			% as above is running and the dependent service was
++			% started at or after the service, then stopping it
++			% will result in unwanted service outage.
++			(s_trans,,,, s_state) = service_status(service_name);
++			if ((s_state == "started") and (state == "started") and
++			    (d_trans >= s_trans)) {
++				debug("Skipping ", services[x],
++				      "; restart not needed");
++				continue;
++			}
++
+ 			info("Dependency lost; stopping ", services[x]);
+ 			()=service_stop(services[x]);
+ 		}
+-- 
+1.7.7.6
+

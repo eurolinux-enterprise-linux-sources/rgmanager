@@ -1,0 +1,61 @@
+From dc5096d7d567a4ff36888ba43695d7fb24511aa4 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 5 Feb 2014 09:53:14 -0500
+Subject: [PATCH] rgmanager: Fix error logging when building the resource
+ tree
+
+Change printf statements to logt_print when attempting to log errors
+when building the resource tree.
+
+Original patch from Shane Bradley <sbradley@redhat.com>
+
+Resolves: rhbz#1053739
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/restree.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/rgmanager/src/daemons/restree.c b/rgmanager/src/daemons/restree.c
+index ea5e1c5..bc98aa6 100644
+--- a/rgmanager/src/daemons/restree.c
++++ b/rgmanager/src/daemons/restree.c
+@@ -591,7 +591,7 @@ do_load_resource(int ccsfd, char *base,
+ 		}
+ 
+ 	       	if (store_resource(reslist, curres) != 0) {
+-	 		printf("Error storing %s resource\n",
++	 		logt_print(LOG_WARNING, "Error storing %s resource\n",
+ 	 		       curres->r_rule->rr_type);
+ 	 		destroy_resource(curres);
+ 			return -1;
+@@ -604,7 +604,7 @@ do_load_resource(int ccsfd, char *base,
+ 		curres = find_resource_by_ref(reslist, rule->rr_type,
+ 						      ref);
+ 		if (!curres) {
+-			printf("Error: Reference to nonexistent "
++			logt_print(LOG_WARNING, "Error: Reference to nonexistent "
+ 			       "resource %s (type %s)\n", ref,
+ 			       rule->rr_type);
+ 			free(ref);
+@@ -612,7 +612,7 @@ do_load_resource(int ccsfd, char *base,
+ 		}
+ 
+ 		if (curres->r_flags & RF_INLINE) {
+-			printf("Error: Reference to inlined "
++			logt_print(LOG_WARNING, "Error: Reference to inlined "
+ 			       "resource %s (type %s) is illegal\n",
+ 			       ref, rule->rr_type);
+ 			free(ref);
+@@ -623,7 +623,7 @@ do_load_resource(int ccsfd, char *base,
+ 
+ 	/* Load it if its max refs hasn't been exceeded */
+ 	if (rule->rr_maxrefs && (curres->r_refs >= rule->rr_maxrefs)){
+-		printf("Warning: Max references exceeded for resource"
++		logt_print(LOG_WARNING, "Max references exceeded for resource"
+ 		       " %s (type %s)\n", curres->r_attrs[0].ra_name,
+ 		       rule->rr_type);
+ 		return -1;
+-- 
+1.9.3
+

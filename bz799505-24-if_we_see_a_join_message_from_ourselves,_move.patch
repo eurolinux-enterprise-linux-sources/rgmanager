@@ -1,0 +1,39 @@
+From bc516e029691845a7c63adfe094d67069df920ab Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 24 Apr 2012 12:56:24 -0400
+Subject: [PATCH] If we see a JOIN message from ourselves, move
+ ourselves to the end of the membership list.
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |   12 ++++++++++--
+ 1 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 7d4882d..2e35f7f 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -1094,8 +1094,16 @@ process_join(struct cpg_lock_msg *m, uint32_t nodeid, uint32_t pid)
+ 
+ 	list_for(&group_members, n, x) {
+ 		if (n->nodeid == nodeid) {
+-			logt_print(LOG_DEBUG, "IGNORING JOIN from existing member %d.%d (%d.%d)\n",
+-				nodeid, pid, nodeid, n->pid);
++			if (n->pid == pid) {
++				logt_print(LOG_DEBUG, "Saw JOIN from self (%d.%d)\n",
++					nodeid, pid);
++				list_remove(&group_members, n);
++				list_append(&group_members, n);
++			} else {
++				logt_print(LOG_DEBUG,
++					"IGNORING JOIN from existing member %d.%d (%d.%d)\n",
++					nodeid, pid, nodeid, n->pid);
++			}
+ 			return 0;
+ 		}
+ 	}
+-- 
+1.7.7.6
+

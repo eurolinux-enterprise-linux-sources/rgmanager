@@ -1,0 +1,249 @@
+From c4aaef4d08c0e886fbba70a0abf4cdc1ce241a27 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jan=20Pokorn=C3=BD?= <jpokorny@redhat.com>
+Date: Thu, 5 Apr 2012 20:46:15 +0200
+Subject: [PATCH] rgmanager: resrules: make expand_time buffer-less
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This has several advantages:
+- safe against unchecked (tainted; restart_expire, etc.) input
+- detection of int type oveflow during conversion
+- more flexibility when needed (e.g. when introducing more
+  strict rules)
+
+Additionally, the int type overflow is checked before
+any multiplying operation.  All overflows leads to returning 0.
+
+Test program for interactive tests of the function provided
+(use "CFLAGS=-DNO_CCS make test-expand-time disable_dbus=1",
+some dependencies needed due to high coupling :/)
+
+Resolves: rhbz#1036652
+
+Signed-off-by: Jan Pokorný <jpokorny@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/reslist.h              |  2 +-
+ rgmanager/src/daemons/Makefile           | 13 +++++-
+ rgmanager/src/daemons/resrules.c         | 74 ++++++++++++++++++++------------
+ rgmanager/src/daemons/test-expand-time.c | 25 +++++++++++
+ 4 files changed, 85 insertions(+), 29 deletions(-)
+ create mode 100644 rgmanager/src/daemons/test-expand-time.c
+
+diff --git a/rgmanager/include/reslist.h b/rgmanager/include/reslist.h
+index 68ea032..cdfc819 100644
+--- a/rgmanager/include/reslist.h
++++ b/rgmanager/include/reslist.h
+@@ -136,7 +136,7 @@ int res_condstart(resource_node_t **tree, resource_t *res, void *ret);
+ int res_condstop(resource_node_t **tree, resource_t *res, void *ret);
+ int res_exec(resource_node_t *node, int op, const char *arg, int depth);
+ /*int res_resinfo(resource_node_t **tree, resource_t *res, void *ret);*/
+-int expand_time(char *val);
++int expand_time(const char *val);
+ int store_action(resource_act_t **actsp, char *name, int depth, int timeout, int interval);
+ 
+ 
+diff --git a/rgmanager/src/daemons/Makefile b/rgmanager/src/daemons/Makefile
+index a178523..43d3377 100644
+--- a/rgmanager/src/daemons/Makefile
++++ b/rgmanager/src/daemons/Makefile
+@@ -3,6 +3,7 @@ TARGET2= rg_test
+ TARGET3= clurgmgrd
+ TARGET4= cpglockd
+ TARGET5= cpglockdump
++TARGET6= test-expand-time
+ 
+ SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4) $(TARGET5)
+ SBINSYMT=$(TARGET3)
+@@ -47,6 +48,11 @@ OBJS4=  cpglockd.o
+ 
+ OBJS5=	cpglockdump.o
+ 
++OBJS6=	test-expand-time.o \
++	reslist.o \
++	resrules.o \
++	rg_locks.o
++
+ CFLAGS += -DSHAREDIR=\"${sharedir}\" -D_GNU_SOURCE
+ CFLAGS += -fPIC
+ CFLAGS += -I${ccsincdir} -I${cmanincdir} -I${corosyncincdir}
+@@ -93,7 +99,7 @@ ${TARGET1}: ${OBJS1} ${LDDEPS}
+ #
+ # The data in the 'tests' directory is hand-crafted; so running 'gentests.sh'
+ # will require that the developer hand-verify the correctness of the
+-# resulting output prior to committing back to CVS.
++# resulting output prior to committing back to VCS.
+ #
+ # This is NOT meant to be an installed binary.  Rather, RPMs and/or other
+ # packages should run 'make check' as part of the build process.
+@@ -112,6 +118,11 @@ ${TARGET4}: ${OBJS4} ${LDDEPS}
+ ${TARGET5}: ${OBJS5} ${LDDEPS}
+ 	$(CC) -o $@ $^ $(CPG_LDFLAGS)
+ 
++# This is a test of a specific parsing function;  after top-level "configure",
++# compile it locally as "CFLAGS=-DNO_CCS make test-expand-time disable_dbus=1".
++${TARGET6}: ${OBJS6}
++	$(CC) -o $@ $^ $(XML2_LDFLAGS)
++
+ check: rg_test
+ 	cd tests && ./runtests.sh
+ 
+diff --git a/rgmanager/src/daemons/resrules.c b/rgmanager/src/daemons/resrules.c
+index 142cfcd..3cfc90f 100644
+--- a/rgmanager/src/daemons/resrules.c
++++ b/rgmanager/src/daemons/resrules.c
+@@ -5,6 +5,7 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <limits.h>
+ #include <resgroup.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -213,65 +214,84 @@ _get_version(xmlDocPtr doc, xmlXPathContextPtr ctx, char *base,
+ }
+ 
+ 
++/* Relying on compiler to cope with constants efficiently */
++#define TIMEF_M  (  60 * 1       )
++#define TIMEF_H  (  60 * TIMEF_M )
++#define TIMEF_D  (  24 * TIMEF_H )
++#define TIMEF_W  (   7 * TIMEF_D )
++#define TIMEF_Y  ( 365 * TIMEF_D )
++
++/* NOTE: Only int type oveflows are checked (no targeted against time_t)  */
+ int
+-expand_time (char *val)
++expand_time (const char *val)
+ {
+-	int curval, len;
+-	int ret = 0;
+-	char *start = val, ival[16];
+-
+-	if (!val)
+-		return (time_t)0;
++	int curval, tmp, ret = 0;
+ 
+-	while (start[0]) {
++	if (!val || *val == '\0')
++		return 0;
+ 
+-		len = 0;
++	do {
+ 		curval = 0;
+-		memset(ival, 0, sizeof(ival));
+ 
+-		while (isdigit(start[len])) {
+-			ival[len] = start[len];
+-			len++;
+-		}
++		while (isdigit(*val)) {
++			tmp = *val - '0';
+ 
+-		if (len) {
+-			curval = atoi(ival);
+-		} else {
+-			len = 1;
++			if (curval > INT_MAX/10
++			    || (curval == INT_MAX/10 && tmp > INT_MAX%10))
++				/* Overflow */
++				break;
++
++			curval *= 10;
++			curval += tmp;
++			++val;
+ 		}
+ 
+-		switch(start[len]) {
++		if (isdigit(*val))
++			/* Overflow detected */
++			return 0;
++
++		/* Watch for overflow also here */
++		switch(*val) {
+ 		case 0:
+ 		case 'S':
+ 		case 's':
+ 			break;
+ 		case 'M':
+         	case 'm':
+-			curval *= 60;
++			if (curval > INT_MAX/TIMEF_M)
++				return 0;
++			curval *= TIMEF_M;
+ 			break;
+ 		case 'h':
+ 		case 'H':
+-			curval *= 3600;
++			if (curval > INT_MAX/TIMEF_H)
++				return 0;
++			curval *= TIMEF_H;
+ 			break;
+ 		case 'd':
+ 		case 'D':
+-			curval *= 86400;
++			if (curval > INT_MAX/TIMEF_D)
++				return 0;
++			curval *= TIMEF_D;
+ 			break;
+ 		case 'w':
+ 		case 'W':
+-			curval *= 604800;
++			if (curval > INT_MAX/TIMEF_W)
++				return 0;
++			curval *= TIMEF_W;
+ 			break;
+ 		case 'y':
+ 		case 'Y':
+-			curval *= 31536000;
++			if (curval > INT_MAX/TIMEF_Y)
++				return 0;
++			curval *= TIMEF_Y;
+ 			break;
+ 		default:
+ 			curval = 0;
+ 		}
++		ret += curval;
+ 
+-		ret += (time_t)curval;
+-		start += len;
+-	}
++	} while (*++val != '\0');
+ 
+ 	return ret;
+ }
+diff --git a/rgmanager/src/daemons/test-expand-time.c b/rgmanager/src/daemons/test-expand-time.c
+new file mode 100644
+index 0000000..0a15452
+--- /dev/null
++++ b/rgmanager/src/daemons/test-expand-time.c
+@@ -0,0 +1,25 @@
++#include <stdio.h>
++#include <time.h>
++
++/* XXX "list_head()", reslist.h should include on its own? */
++#include "list.h"
++/* XXX "restart_counter_t", dtto */
++#include "restart_counter.h"
++
++#include "reslist.h"
++
++int main(int argc, char *argv[])
++{
++	char buffer[255];
++	char *aux;
++	for (;;) {
++		printf("Time string: ");
++		if (!fgets(buffer, sizeof(buffer), stdin) && feof(stdin))
++			break;
++		aux = strchr(buffer,'\n');
++		if (aux)
++			*aux = '\0';
++		printf("Expanded   : %d\n", expand_time(buffer));
++	}
++	return EXIT_SUCCESS;
++}
+-- 
+1.9.3
+

@@ -1,0 +1,38 @@
+From 7a97ab473e6c2c82fe5bfd964e545895aea81d8e Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 4 May 2012 15:59:15 -0400
+Subject: [PATCH] rgmanager: Fix dependent service handling during recovery
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Acked-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/resources/default_event_script.sl |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/resources/default_event_script.sl b/rgmanager/src/resources/default_event_script.sl
+index c54c068..c9cde4b 100644
+--- a/rgmanager/src/resources/default_event_script.sl
++++ b/rgmanager/src/resources/default_event_script.sl
+@@ -500,8 +500,6 @@ define default_service_event_handler()
+ 		}
+ 
+ 		()=move_or_start(service_name, nodes);
+-
+-		return;
+ 	}
+ 
+ 	%
+@@ -556,6 +554,10 @@ define default_service_event_handler()
+ 		}
+ 	}
+ 
++	if (service_state == "recovering") {
++		return;
++	}
++
+ 	%
+ 	% Try to restart exclusive service which might have been recently
+ 	% stopped in order to make room for other exclusive services.
+-- 
+1.7.7.6
+

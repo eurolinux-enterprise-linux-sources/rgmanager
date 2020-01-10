@@ -1,0 +1,74 @@
+From 66c89c1bbedd2217b199e76814960aae97d6b0fe Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 12:03:37 +0200
+Subject: [PATCH] cpglockd: fix pid file creation and check if daemon is
+ already running
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/daemon_init.h    |    1 +
+ rgmanager/src/clulib/daemon_init.c |    3 +--
+ rgmanager/src/daemons/cpglockd.c   |   11 ++++++++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/rgmanager/include/daemon_init.h b/rgmanager/include/daemon_init.h
+index 0252386..99e87c2 100644
+--- a/rgmanager/include/daemon_init.h
++++ b/rgmanager/include/daemon_init.h
+@@ -3,6 +3,7 @@
+ 
+ int check_pid_valid(pid_t pid, char *prog);
+ int check_process_running(char *prog, pid_t * pid);
++void update_pidfile(char *prog);
+ void daemon_init(char *prog);
+ void daemon_cleanup(void);
+ 
+diff --git a/rgmanager/src/clulib/daemon_init.c b/rgmanager/src/clulib/daemon_init.c
+index e9adeed..1a495d2 100644
+--- a/rgmanager/src/clulib/daemon_init.c
++++ b/rgmanager/src/clulib/daemon_init.c
+@@ -30,7 +30,6 @@
+ /*
+  * Local prototypes.
+  */
+-static void update_pidfile(char *prog);
+ static int setup_sigmask(void);
+ static char pid_filename[PATH_MAX];
+ 
+@@ -139,7 +138,7 @@ check_process_running(char *prog, pid_t * pid)
+ }
+ 
+ 
+-static void
++void
+ update_pidfile(char *prog)
+ {
+ 	FILE *fp = NULL;
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 0cba6f3..5b6ea79 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -1363,8 +1363,17 @@ main(int argc, char **argv)
+ 		}
+ 	}
+ 
+-	if (!nofork)
++	if (!nofork) {
+ 		daemon_init((char *) "cpglockd");
++	} else {
++		pid_t pid;
++		if (check_process_running((char *) "cpglockd", &pid) && (pid != getpid())) {
++			fprintf(stderr,
++				"cpglockd is already running\n");
++			return -1;
++		}
++		update_pidfile((char *) "cpglockd");
++	}
+ 
+ 	setup_signal(SIGPIPE, SIG_IGN);
+ 	setup_signal(SIGTERM, flag_shutdown);
+-- 
+1.7.7.6
+

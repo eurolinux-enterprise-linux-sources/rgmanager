@@ -1,0 +1,30 @@
+From 15993079738bf0e07e93c4f07e1816388654e283 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 25 Apr 2012 09:34:03 -0400
+Subject: [PATCH] Print cpg_mcast_joined() return value and errno if it
+ fails
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index a3943a2..689c494 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -436,7 +436,8 @@ send_lock_msg(struct cpg_lock_msg *m)
+ 	do {
+ 		ret = cpg_mcast_joined(cpg, CPG_TYPE_AGREED, &iov, 1);
+ 		if (ret != CPG_OK) {
+-			logt_print(LOG_DEBUG, "send_lock_msg() failed\n");
++			logt_print(LOG_DEBUG, "send_lock_msg() failed %d: %s\n",
++				ret, strerror(errno));
+ 			usleep(250000);
+ 		}
+ 	} while (ret != CPG_OK && !shutdown_pending);
+-- 
+1.7.7.6
+

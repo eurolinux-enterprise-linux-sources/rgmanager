@@ -1,0 +1,32 @@
+From 8168796b4f1d4e7435b2212a18d4cffbd86e1fa4 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Tue, 6 Sep 2011 15:42:41 -0400
+Subject: [PATCH] rgmanager: Resolve rare deadlock
+
+In very rare cases, it was possible to fill up a pipe used for
+IPC between threads during reconfiguration, causing a deadlock.
+This patch resolves the issue.
+
+Resolves: rhbz#635152
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/daemons/groups.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/daemons/groups.c b/rgmanager/src/daemons/groups.c
+index e9413cd..ee0fc81 100644
+--- a/rgmanager/src/daemons/groups.c
++++ b/rgmanager/src/daemons/groups.c
+@@ -1683,8 +1683,6 @@ init_resource_groups(int reconfigure, int do_init)
+ 		free(val);
+ 	}
+ 
+-	/* Wait for any pending requests */
+-	rg_wait_threads();
+ 	/* Block operations that would break during configuration
+ 	   changes */
+ 	rg_clear_initialized(FL_CONFIG);
+-- 
+1.7.7.6
+

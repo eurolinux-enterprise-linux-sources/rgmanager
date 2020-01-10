@@ -1,0 +1,32 @@
+From a4d6a6aa6ba6bd8d610d42fdb518089efa4112ee Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 12 Oct 2012 21:14:19 -0400
+Subject: [PATCH] rgmanager: Fix return code when a service would deadlock
+
+When we detect that starting a service would cause a deadlock, return 0
+instead of -1. This fixes a crash that occurred when -1 was returned.
+
+Resolves: rhbz#861157
+
+Acked-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/rg_thread.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/rg_thread.c b/rgmanager/src/daemons/rg_thread.c
+index 5e551c3..b888717 100644
+--- a/rgmanager/src/daemons/rg_thread.c
++++ b/rgmanager/src/daemons/rg_thread.c
+@@ -756,7 +756,7 @@ rt_enqueue_request(const char *resgroupname, int request,
+ 		logt_print(LOG_DEBUG,
+ 			"Failed to queue %d request for %s: Would block\n",
+ 			request, resgroupname);
+-		return -1;
++		return 0;
+ 	}
+ 
+ 	ret = rq_queue_request(resgroup->rt_queue, resgroup->rt_name,
+-- 
+1.7.11.7
+

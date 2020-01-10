@@ -1,0 +1,42 @@
+From c9a9dbaf2f0c954a1667341d62380ef1b83f1009 Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 16:30:32 +0200
+Subject: [PATCH] rgmanager: die hard if we cpglockd dies
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/clulib/cpg_lock.c |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/clulib/cpg_lock.c b/rgmanager/src/clulib/cpg_lock.c
+index 7cff2a3..d257cf4 100644
+--- a/rgmanager/src/clulib/cpg_lock.c
++++ b/rgmanager/src/clulib/cpg_lock.c
+@@ -12,6 +12,7 @@
+ #include <sys/types.h>
+ #include <sys/select.h>
+ #include <pthread.h>
++#include <signal.h>
+ 
+ #include <cpglock.h>
+ 
+@@ -69,9 +70,13 @@ _cpg_lock(int mode,
+ 		ret = cpg_lock(_cpgh, resource, 1, &l);
+ 	else
+ 		ret = cpg_lock(_cpgh, resource, 0, &l);
+-	
++
+ 	if (ret == 0) {
+ 		cpg2dlm(&l, lksb);
++	} else {
++		if (errno == EPIPE) {
++			raise(SIGSEGV);
++		}
+ 	}
+ 
+ 	return ret;
+-- 
+1.7.7.6
+

@@ -1,0 +1,83 @@
+From 13dcbb8265eafcdf69c033f45f2a37aa44b18908 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Mon, 15 Oct 2012 09:32:18 -0400
+Subject: [PATCH] rgmanager: Randomize node list when relocating with no
+ target
+
+Randomize the node list when choosing a node to which to forward
+a start request to when relocating a service with no specified
+target. The current behavior causes the service to bounce between
+the two nodes with the highest node IDs when relocating in a loop.
+
+Resolves: rhbz#831648
+
+Acked-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/members.h      |  1 +
+ rgmanager/src/clulib/members.c   | 20 ++++++++++++++++++++
+ rgmanager/src/daemons/rg_state.c |  1 +
+ 3 files changed, 22 insertions(+)
+
+diff --git a/rgmanager/include/members.h b/rgmanager/include/members.h
+index 7e99e17..09f7a9a 100644
+--- a/rgmanager/include/members.h
++++ b/rgmanager/include/members.h
+@@ -27,6 +27,7 @@ char * memb_id_to_name(cluster_member_list_t *ml, int nodeid);
+ cman_node_t * memb_id_to_p(cluster_member_list_t *ml, int nodeid);
+ cman_node_t * memb_name_to_p(cluster_member_list_t *ml, char *name);
+ void free_member_list(cluster_member_list_t *ml);
++void member_list_shuffle(cluster_member_list_t *ml);
+ cluster_member_list_t *memb_gained(cluster_member_list_t *old,
+ 		 		   cluster_member_list_t *new);
+ cluster_member_list_t *memb_lost(cluster_member_list_t *old,
+diff --git a/rgmanager/src/clulib/members.c b/rgmanager/src/clulib/members.c
+index 5f98708..715fe39 100644
+--- a/rgmanager/src/clulib/members.c
++++ b/rgmanager/src/clulib/members.c
+@@ -11,6 +11,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include <sys/socket.h>
++#include <sys/time.h>
+ #include <rg_types.h>
+ #include <pthread.h>
+ #include <errno.h>
+@@ -501,3 +502,22 @@ member_list_dup(cluster_member_list_t *orig)
+ 	return ret;
+ }
+ 
++void member_list_shuffle(cluster_member_list_t *ml) {
++    int i;
++    unsigned st;
++    struct timeval tv;
++
++    gettimeofday(&tv, NULL);
++    st = (int)(tv.tv_usec);
++
++
++    for (i = 0 ; i < ml->cml_count ; i++) {
++        cman_node_t temp;
++        int newidx = rand_r(&st) % ml->cml_count;
++        if (newidx == i)
++            continue;
++        memcpy(&temp, &ml->cml_members[i], sizeof(cman_node_t));
++        memcpy(&ml->cml_members[i], &ml->cml_members[newidx], sizeof(cman_node_t));
++        memcpy(&ml->cml_members[newidx], &temp, sizeof(cman_node_t));
++    }
++}
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 80e8667..59454bf 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -1924,6 +1924,7 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
+ 		allowed_nodes = member_list();
+ 		//count_resource_groups(allowed_nodes);
+ 	}
++	member_list_shuffle(allowed_nodes);
+ 
+ 	if (preferred_target > 0)
+ 		memb_mark_down(allowed_nodes, preferred_target);
+-- 
+1.7.11.7
+

@@ -1,0 +1,39 @@
+From 2616b150da0fb5e6bb24f9d3483b52ea3a89ef82 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 30 Nov 2012 11:28:57 -0500
+Subject: [PATCH] rgmanager: Update status after resource recovery
+
+From John Ruemker <jrummy@redhat.com>:
+
+"When a service is configured with a recoverable resource, such as
+nfsclient, a failure of that client correctly triggers the recover
+function. However, even if recover is successful, rgmanager still stops
+and recovers the service."
+
+Resolves: rhbz#879031
+
+Acked-by: Lon Hohberger <lhh@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/restree.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/restree.c b/rgmanager/src/daemons/restree.c
+index 9cd38a2..ea5e1c5 100644
+--- a/rgmanager/src/daemons/restree.c
++++ b/rgmanager/src/daemons/restree.c
+@@ -1298,8 +1298,10 @@ do_status(resource_node_t *node)
+ 		return x;
+ 
+ 	/* Strange/failed status. Try to recover inline. */
+-	if ((x = res_exec(node, RS_RECOVER, NULL, 0)) == 0)
++	if ((x = res_exec(node, RS_RECOVER, NULL, 0)) == 0) {
++	        node->rn_last_status = x;
+ 		return 0;
++	}
+ 
+ 	return x;
+ }
+-- 
+1.7.11.7
+

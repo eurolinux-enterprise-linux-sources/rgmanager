@@ -1,0 +1,35 @@
+From ef03894f10f1ffc51422dd89a310e887c043e543 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 25 Apr 2012 15:31:09 -0400
+Subject: [PATCH] Set m.owner_nodeid to the our node id when NAKing
+ requests when the cluster is inquorate.
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 1f69ef8..df18eb3 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -1736,11 +1736,13 @@ main(int argc, char **argv)
+ 				/* XXX check for dup connection */
+ 				if (m.request == MSG_LOCK) {
+ 					if (!cluster_quorate) {
++						m.request = MSG_NAK;
++						m.owner_nodeid = my_node_id;
++
+ 						logt_print(LOG_DEBUG, "Sending NAK for new lock request while not quorate (%s [%d:%d:%d])\n",
+ 							m.resource, m.owner_nodeid,
+ 							m.owner_pid, m.owner_tid);
+ 
+-						m.request = MSG_NAK;
+ 						if (write_retry(client->fd, &m, sizeof(m), NULL) < 0) {
+ 							logt_print(LOG_DEBUG,
+ 								"Error sending NAK for %s [%d:%d:%d]: %s\n",
+-- 
+1.7.7.6
+

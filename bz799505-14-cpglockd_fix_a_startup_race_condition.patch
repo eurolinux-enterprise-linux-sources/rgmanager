@@ -1,0 +1,47 @@
+From e114e9ad6579674555bfa019a29189b0a771bfe0 Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 12:07:25 +0200
+Subject: [PATCH] cpglockd: fix a startup race condition
+
+[root@clusternet-node1 shm]# cpglockd -f
+nodeid 1 already in group with PID 8126 8126
+Unable to join CPG group
+
+in some cases the cpg membership is updated between
+cpglockd joining and cpglockd requesting current membership,
+triggering the above error incorrectly.
+
+check if the pids are the same, we can be rather sure
+that it's us (given previous fix for startup pid/lock check)
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |   10 ++++++----
+ 1 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 5b6ea79..1bd53d3 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -1309,10 +1309,12 @@ cpg_init(void)
+ 
+ 	for (i = 0 ; i < cpg_member_list_len ; i++) {
+ 		if (member_list[i].nodeid == my_node_id) {
+-			fprintf(stderr, "nodeid %d already in group with PID %u\n",
+-				member_list[i].nodeid, member_list[i].pid);
+-			cpg_fin();
+-			return -1;
++			if (member_list[i].pid != getpid()) {
++				fprintf(stderr, "nodeid %d already in group with PID %u %u\n",
++					member_list[i].nodeid, member_list[i].pid, getpid());
++				cpg_fin();
++				return -1;
++			}
+ 		}
+ 	}
+ 
+-- 
+1.7.7.6
+

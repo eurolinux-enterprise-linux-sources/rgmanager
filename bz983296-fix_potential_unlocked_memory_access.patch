@@ -1,0 +1,31 @@
+From e41c96a229bcc32094164287c2552f3626ae8692 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 26 Feb 2013 10:57:47 -0500
+Subject: [PATCH] rgmanager: Fix potential unlocked memory access
+
+Fix a potential unlocked access of the resource list.
+
+Related: rhbz#983296
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/groups.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/rgmanager/src/daemons/groups.c b/rgmanager/src/daemons/groups.c
+index ee0fc81..e802c2f 100644
+--- a/rgmanager/src/daemons/groups.c
++++ b/rgmanager/src/daemons/groups.c
+@@ -1750,7 +1750,9 @@ init_resource_groups(int reconfigure, int do_init)
+ 
+ 		do_condstops();
+ 
++		pthread_rwlock_rdlock(&resource_lock);
+ 		copy_incarnations(&_resources, &reslist);
++		pthread_rwlock_unlock(&resource_lock);
+ 	}
+ 
+ 	/* Swap in the new configuration */
+-- 
+1.8.3.1
+

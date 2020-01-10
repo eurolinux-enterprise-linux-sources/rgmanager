@@ -1,0 +1,28 @@
+From 899e2d3863fcdcc5f70d175d149b3b6ad084054c Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 27 Apr 2012 18:31:47 -0400
+Subject: [PATCH] Increment the recovered locks count when a client is
+ disconnected.
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 5d0fed9..1a5832c 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -643,6 +643,7 @@ del_client(int fd)
+ 
+ 		l->l.state = LOCK_FREE;
+ 		strncpy(m.resource, l->l.resource, sizeof(m.resource));
++		++recovered;
+ 		if (grant_next(&m) == 0)
+ 			send_unlock(&m);
+ 	}
+-- 
+1.7.7.6
+

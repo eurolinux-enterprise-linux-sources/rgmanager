@@ -1,0 +1,63 @@
+From 320e12394d7010c139e271f4345d97a70eec2529 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Tue, 1 May 2012 10:18:58 -0400
+Subject: [PATCH] rgmanager: Add man page for cpglockd; update
+ rgmanager.8
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/man/cpglockd.8  |   21 +++++++++++++++++++++
+ rgmanager/man/rgmanager.8 |    7 ++++++-
+ 2 files changed, 27 insertions(+), 1 deletions(-)
+ create mode 100644 rgmanager/man/cpglockd.8
+
+diff --git a/rgmanager/man/cpglockd.8 b/rgmanager/man/cpglockd.8
+new file mode 100644
+index 0000000..8084d96
+--- /dev/null
++++ b/rgmanager/man/cpglockd.8
+@@ -0,0 +1,21 @@
++.TH "cpglockd" "8" "May 2012" "" "Red Hat High Availability"
++.SH "NAME"
++cpglockd \- CPG lock server for rgmanager
++.SH "DESCRIPTION"
++.PP 
++.B cpglockd
++utilizes the extended virtual synchrony features of the Corosync
++Cluster Engine to implement a simplistic, distributed lock server
++for rgmanager.
++.SH "COMMAND LINE OPTIONS"
++.IP \-F
++Don't wait for the current node to join the fencing domain at startup
++.IP \-Q
++Don't wait for quorum formation at startup
++.IP \-f
++Operate in the foreground mode; do not daemonize
++.IP \-h
++Print command line usage.
++
++.SH "SEE ALSO"
++rgmanager(8), corosync(8)
+diff --git a/rgmanager/man/rgmanager.8 b/rgmanager/man/rgmanager.8
+index 2b018d2..bab52ef 100644
+--- a/rgmanager/man/rgmanager.8
++++ b/rgmanager/man/rgmanager.8
+@@ -380,8 +380,13 @@ Do not perform stop-before-start.  Combined with the
+ .I -Z
+ flag to clusvcadm, this can be used to allow rgmanager to be upgraded
+ without stopping a given user service or set of services.
++.IP \-C [0|1]
++Explicitly disable or enable CPG-based locking.  The default is to
++enable this when RRP is turned on (which requires a cluster outage).
++This option MUST be the same on all hosts in the cluster and must
++only be enabled or disabled with all instances of rgmanager turned off.
+ 
+ .SH "SEE ALSO"
+ http://sources.redhat.com/cluster/wiki/RGManager
+ 
+-clusvcadm(8), cluster.conf(5)
++clusvcadm(8), cluster.conf(5), cpglockd(8)
+-- 
+1.7.7.6
+

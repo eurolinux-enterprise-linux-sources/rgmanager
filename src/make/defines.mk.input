@@ -1,0 +1,79 @@
+# Install Locations
+prefix ?= ${DESTDIR}@PREFIX@
+sbindir ?= ${DESTDIR}@SBINDIR@
+relativesbin ?= @RELATIVESBIN@
+initddir ?= ${DESTDIR}@INITDDIR@
+libdir ?= ${DESTDIR}@LIBDIR@
+libexecdir ?= ${DESTDIR}@LIBEXECDIR@
+sharedir ?= ${DESTDIR}@SHAREDIR@
+docdir ?= ${DESTDIR}@DOCDIR@
+logdir ?= ${DESTDIR}@LOGDIR@
+logrotatedir ?= ${DESTDIR}@LOGROTATEDIR@
+mandir ?= ${DESTDIR}@MANDIR@
+module_dir ?= ${DESTDIR}@MODULE_DIR@
+incdir ?= ${DESTDIR}@INCDIR@
+notifyddir ?= ${DESTDIR}@CONFDIR@/cman-notify.d
+pkgconfigdir ?= ${DESTDIR}@LIBDIR@/pkgconfig
+
+# Build information
+
+# C Compiler defaults
+CC = @CC@
+AR = ar
+RANLIB = ranlib
+
+CFLAGS += @CFLAGS@ -I@SRCDIR@/make
+CFLAGS += -DDEFAULT_CONFIG_DIR=\"@CONFDIR@\" -DDEFAULT_CONFIG_FILE=\"@CONFFILE@\"
+CFLAGS += -DLOGDIR=\"@LOGDIR@\" -DSYSLOGFACILITY=@SYSLOGFACILITY@ -DSYSLOGLEVEL=@SYSLOGLEVEL@
+LDFLAGS += @LDFLAGS@
+
+SRCDIR = @SRCDIR@
+OBJDIR = @OBJDIR@
+
+KERNEL_SRC = @KERNEL_SRC@
+ccsincdir ?= @CCSINCDIR@
+ccslibdir ?= @CCSLIBDIR@
+cmanincdir ?= @CMANINCDIR@
+cmanlibdir ?= @CMANLIBDIR@
+dlmincdir ?= @DLMINCDIR@
+dlmlibdir ?= @DLMLIBDIR@
+dlmcontrolincdir ?= @DLMCONTROLINCDIR@
+dlmcontrollibdir ?= @DLMCONTROLLIBDIR@
+fenceincdir ?= @FENCEINCDIR@
+fencelibdir ?= @FENCELIBDIR@
+fencedincdir ?= @FENCEDINCDIR@
+fencedlibdir ?= @FENCEDLIBDIR@
+logtincdir ?= @LOGTINCDIR@
+logtlibdir ?= @LOGTLIBDIR@
+ncursesincdir ?= @NCURSESINCDIR@
+ncurseslibdir ?= @NCURSESLIBDIR@
+slangincdir ?= @SLANGINCDIR@
+slanglibdir ?= @SLANGLIBDIR@
+corosyncincdir ?= @COROSYNCINCDIR@
+corosynclibdir ?= @COROSYNCLIBDIR@
+openaisincdir ?= @OPENAISINCDIR@
+openaislibdir ?= @OPENAISLIBDIR@
+corosyncbin ?= @COROSYNCBIN@
+ldapincdir ?= @LDAPINCDIR@
+ldaplibdir ?= @LDAPLIBDIR@
+zlibincdir ?= @ZLIBINCDIR@
+zliblibdir ?= @ZLIBLIBDIR@
+contrib_code ?= @ENABLE_CONTRIB@
+disable_dbus ?= @DISABLE_DBUS@
+without_common ?= @DISABLE_COMMON@
+without_config ?= @DISABLE_CONFIG@
+without_cman ?= @DISABLE_CMAN@
+without_dlm ?= @DISABLE_DLM@
+without_group ?= @DISABLE_GROUP@
+without_fence ?= @DISABLE_FENCE@
+without_gfs2 ?= @DISABLE_GFS2@
+without_rgmanager ?= @DISABLE_RGMANAGER@
+without_bindings ?= @DISABLE_BINDINGS@
+
+THISDIR = $(shell echo $(CURDIR) | sed -e 's|$(OBJDIR)/||g')
+S=$(SRCDIR)/$(THISDIR)
+
+CONFDIR=@CONFDIR@
+CONFFILE=@CONFFILE@
+
+UNINSTALL = perl @SRCDIR@/scripts/uninstall.pl

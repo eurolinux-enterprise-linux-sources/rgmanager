@@ -1,0 +1,56 @@
+From 2a5c98a455a28890c2e3e6c02d31e9f542369008 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Fri, 27 Apr 2012 18:33:34 -0400
+Subject: [PATCH] rgmanager: Retry connection to cpglockd
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/clulib/cpg_lock.c |   27 ++++++++++++++++++---------
+ 1 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/rgmanager/src/clulib/cpg_lock.c b/rgmanager/src/clulib/cpg_lock.c
+index d257cf4..7c1c8c3 100644
+--- a/rgmanager/src/clulib/cpg_lock.c
++++ b/rgmanager/src/clulib/cpg_lock.c
+@@ -105,18 +105,27 @@ _cpg_lock_finished(const char *name)
+ int
+ cpg_lock_initialize(void)
+ {
+-	int ret, err;
++	int ret, err, retries = 0;
+ 
+-	pthread_mutex_lock(&_default_lock);
+-	if (_cpgh) {
++	while (retries < 10) {
++		pthread_mutex_lock(&_default_lock);
++		if (_cpgh) {
++			pthread_mutex_unlock(&_default_lock);
++			return 0;
++		}
++
++		cpg_lock_init(&_cpgh);
++		ret = (_cpgh == NULL);
++		err = errno;
+ 		pthread_mutex_unlock(&_default_lock);
+-		return 0;
+-	}
+ 
+-	cpg_lock_init(&_cpgh);
+-	ret = (_cpgh == NULL);
+-	err = errno;
+-	pthread_mutex_unlock(&_default_lock);
++		if (ret == 0)
++			break;
++		else {
++			sleep(1);
++			++retries;
++		}
++	}
+ 
+ 	/* Set up function pointers */
+ 	clu_lock = _cpg_lock;
+-- 
+1.7.7.6
+

@@ -1,0 +1,30 @@
+From 5fa8099c3dad18712941a5fbea1379a6e2ffdadd Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 18 May 2012 07:30:31 -0400
+Subject: [PATCH] rgmanager: Fix a crash when dbus notifications are
+ enabled
+
+dbus doesn't lock internal data unless dbus_threads_init
+is called.
+
+Acked-by: Lon Hohberger <lhh@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/update-dbus.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/rgmanager/src/daemons/update-dbus.c b/rgmanager/src/daemons/update-dbus.c
+index e706746..474140e 100644
+--- a/rgmanager/src/daemons/update-dbus.c
++++ b/rgmanager/src/daemons/update-dbus.c
+@@ -69,6 +69,7 @@ rgm_dbus_init(void)
+ 		return 0;
+ 	}
+ 
++	dbus_threads_init_default();
+ 	dbus_error_init(&err);
+ 
+ 	dbc = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
+-- 
+1.7.11.4
+

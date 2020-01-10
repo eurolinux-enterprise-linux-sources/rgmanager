@@ -1,0 +1,117 @@
+From 3c0c6c699eeb23c55496bb587133e98f1d6d2a76 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Wed, 27 Jul 2011 13:42:55 -0400
+Subject: [PATCH] rgmanager: Add 'disabled' configuration option
+
+The option turns off rgmanager, which will shut down if
+running and cause rgmanager to refuse to start if
+starting up.
+
+Resolves: rhbz#723925
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/main.c |   51 +++++++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 50 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/daemons/main.c b/rgmanager/src/daemons/main.c
+index 3c39c46..38c7007 100644
+--- a/rgmanager/src/daemons/main.c
++++ b/rgmanager/src/daemons/main.c
+@@ -745,6 +745,14 @@ event_loop(msgctx_t *localctx, msgctx_t *clusterctx)
+ 	if (need_reconfigure) {
+ 		need_reconfigure = 0;
+ 		configure_rgmanager(-1, 0, NULL);
++
++		/*
++		 * A shutdown during reconfiguration would slow down
++		 * the exit request, so it's pointless to run the
++		 * deltas at this point
++		 */
++		if (shutdown_pending)
++			return 0;
+ 		config_event_q();
+ 		return 0;
+ 	}
+@@ -778,7 +786,6 @@ cleanup(msgctx_t *clusterctx)
+ }
+ 
+ 
+-
+ static void
+ statedump(int __attribute__ ((unused)) sig)
+ {
+@@ -786,6 +793,36 @@ statedump(int __attribute__ ((unused)) sig)
+ }
+ 
+ 
++static int
++rgmanager_disabled(int ccsfd)
++{
++	char *v;
++	int disabled = 0;
++	int internal;
++
++	if (ccsfd < 0) {
++		internal = 1;
++		ccsfd = ccs_force_connect(NULL, 0);
++		if (ccsfd < 0)
++			return -1;
++	}
++
++	if (ccs_get(ccsfd, "/cluster/rm/@disabled", &v) == 0) {
++		if (atoi(v) == 1) {
++			disabled = 1;
++			shutdown_pending = 1;
++			logt_print(LOG_NOTICE, "Resource Group Manager Disabled\n");
++		}
++		free(v);
++	}
++
++	if (internal)
++		ccs_disconnect(ccsfd);
++
++	return disabled;
++}
++
++
+ /*
+  * Configure logging based on data in cluster.conf
+  */
+@@ -806,6 +843,8 @@ configure_rgmanager(int ccsfd, int dbg, int *token_secs)
+ 
+ 	setup_logging(ccsfd);
+ 
++	rgmanager_disabled(ccsfd);
++
+ 	if (token_secs && ccs_get(ccsfd, "/cluster/totem/@token", &v) == 0) {
+ 		tmp = atoi(v);
+ 		if (tmp >= 1000) {
+@@ -978,6 +1017,13 @@ main(int argc, char **argv)
+ 		debug = 1;
+ 	}
+ 
++	/* If we're disabled in the configuration, don't fork */
++	if (rgmanager_disabled(-1) > 0) {
++		fprintf(stderr,
++			"rgmanager disabled in configuration; not starting\n");
++		return 2;
++	}
++
+ 	if (!foreground && (geteuid() == 0)) {
+ 		daemon_init(argv[0]);
+ 		if (wd && !debug && !watchdog_init())
+@@ -1036,6 +1082,9 @@ main(int argc, char **argv)
+ 	 */
+ 	xmlInitParser();
+ 	configure_rgmanager(-1, debug, &cluster_timeout);
++	if (shutdown_pending == 1)
++		goto out_ls;
++
+ 	logt_print(LOG_NOTICE, "Resource Group Manager Starting\n");
+ 
+ 	if (rgm_dbus_notify && rgm_dbus_init() != 0) {
+-- 
+1.7.3.4
+

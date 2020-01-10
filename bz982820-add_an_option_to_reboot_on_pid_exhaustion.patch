@@ -1,0 +1,103 @@
+From e5e3ba141fc76131a2b3b23ee15159b352d4c9dc Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Mon, 23 Jun 2014 01:57:53 -0400
+Subject: [PATCH] rgmanager: Add an option to reboot on PID exhaustion
+
+If we run out of PIDs and the "reboot_on_pid_exhaustion" attribute on
+the rm tag is set to true, reboot the system immediately.
+
+Resolves: rhbz#982820
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/groups.h     |  2 +-
+ rgmanager/src/daemons/groups.c |  8 ++++++--
+ rgmanager/src/daemons/main.c   | 12 +++++++++++-
+ 3 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/rgmanager/include/groups.h b/rgmanager/include/groups.h
+index f02f0e2..1503eb8 100644
+--- a/rgmanager/include/groups.h
++++ b/rgmanager/include/groups.h
+@@ -26,7 +26,7 @@ void kill_resource_groups(void);
+ /* do this op on all resource groups.  The handler for the request 
+    will sort out whether or not it's a valid request given the state */
+ int rg_doall(int request, int block, const char *debugfmt);
+-void do_status_checks(void); /* Queue status checks for locally running
++int do_status_checks(void); /* Queue status checks for locally running
+ 				services */
+ 
+ int svc_exists(const char *svcname);
+diff --git a/rgmanager/src/daemons/groups.c b/rgmanager/src/daemons/groups.c
+index e802c2f..050fc19 100644
+--- a/rgmanager/src/daemons/groups.c
++++ b/rgmanager/src/daemons/groups.c
+@@ -1378,7 +1378,7 @@ q_status_checks(void __attribute__ ((unused)) *arg)
+ }
+ 
+ 
+-void
++int
+ do_status_checks(void)
+ {
+ 	pthread_attr_t attrs;
+@@ -1389,8 +1389,12 @@ do_status_checks(void)
+         pthread_attr_setdetachstate(&attrs, PTHREAD_CREATE_DETACHED);
+ 	pthread_attr_setstacksize(&attrs, 65535);
+ 
+-	pthread_create(&newthread, &attrs, q_status_checks, NULL);
++	if (pthread_create(&newthread, &attrs, q_status_checks, NULL) != 0) {
++		printf("PTHREAD CREATE FAIL 3\n");
++		return -1;
++	}
+         pthread_attr_destroy(&attrs);
++	return 0;
+ }
+ 
+ 
+diff --git a/rgmanager/src/daemons/main.c b/rgmanager/src/daemons/main.c
+index e55e15e..86f61fe 100644
+--- a/rgmanager/src/daemons/main.c
++++ b/rgmanager/src/daemons/main.c
+@@ -24,6 +24,7 @@
+ #include <daemon_init.h>
+ #include <groups.h>
+ #include <rg_dbus.h>
++#include <sys/reboot.h>
+ 
+ #include <cpglock-internal.h>
+ 
+@@ -45,6 +46,7 @@ static uint8_t ALIGNED port = RG_PORT;
+ static char *rgmanager_lsname = (char *)"rgmanager"; /* XXX default */
+ static int status_poll_interval = DEFAULT_CHECK_INTERVAL;
+ static int stops_queued = 0;
++static int reboot_on_pid_exhaustion = 0;
+ 
+ static void
+ segfault(int __attribute__ ((unused)) sig)
+@@ -765,7 +767,10 @@ event_loop(msgctx_t *localctx, msgctx_t *clusterctx)
+ 
+ 	/* No new messages.  Drop in the status check requests.  */
+ 	if (n == 0 && rg_quorate()) {
+-		do_status_checks();
++		if (do_status_checks() != 0 && reboot_on_pid_exhaustion) {
++			logt_print(LOG_CRIT, "Unable to create status check thread. Probable PID exhaustion. Rebooting.\n");
++                        reboot(RB_AUTOBOOT);
++		}
+ 		return 0;
+ 	}
+ 
+@@ -938,6 +943,11 @@ configure_rgmanager(int ccsfd, int dbg, int *token_secs)
+ 		free(v);
+ 	}
+ 
++	if (ccs_get(ccsfd, "/cluster/rm/@reboot_on_pid_exhaustion", &v) == 0) {
++		reboot_on_pid_exhaustion = atoi(v);
++		free(v);
++	}
++
+ 	if (internal)
+ 		ccs_disconnect(ccsfd);
+ 
+-- 
+1.9.3
+

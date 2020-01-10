@@ -1,0 +1,52 @@
+From b1cc2fd5ce82d5c65ce979c4138aa9087aaf984c Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Wed, 21 Mar 2012 16:35:10 -0400
+Subject: [PATCH] rgmanager: Merge upstream cpglockd
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    9 +++------
+ 1 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 55d832a..3ed132b 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -176,7 +176,7 @@ old_msg(struct cpg_lock_msg *m)
+ 	n = do_alloc(sizeof(*n));
+ 	memcpy(&n->m, m, sizeof(n->m));
+ 	list_append(&messages, n);
+-	if (message_count < 10) {
++	if (message_count < 20) {
+ 		++message_count;
+ 	} else {
+ 		n = messages;
+@@ -781,8 +781,8 @@ process_unlock(struct cpg_lock_msg *m, uint32_t nodeid)
+ 		    l->l.owner_pid == m->owner_pid) {
+ 			printf("UNLOCK %s: %d:%d:%d\n", m->resource, m->owner_nodeid, m->owner_pid, m->owner_tid);
+ 			l->l.state = LOCK_FREE;
+-			if (grant_next(m) != 0)
+-				l->l.state = LOCK_PENDING;
++			//if (grant_next(m) != 0)
++				//l->l.state = LOCK_PENDING;
+ 		}
+ 	}
+ 
+@@ -1055,12 +1055,9 @@ main(int argc, char **argv)
+ 	int afd = -1;
+ 	int n,x;
+ 
+-	struct cpg_lock l;
+ 	struct cpg_lock_msg m;
+ 	struct client_node *client;
+ 
+-	l.state = 0;
+-
+ 	signal(SIGPIPE, SIG_IGN);
+ 
+ 	fd = sock_listen(CPG_LOCKD_SOCK);
+-- 
+1.7.7.6
+

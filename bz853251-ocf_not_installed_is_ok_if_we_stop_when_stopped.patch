@@ -1,0 +1,57 @@
+From b257ab953eaa3acc20fbdd47c34579fa0282d737 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Thu, 15 Dec 2011 15:44:26 -0500
+Subject: [PATCH] rgmanager: OCF_NOT_INSTALLED is OK if we stop when stopped
+
+Scripts often live in file systems which are mounted by
+rgmanager.  This patch makes rgmanager ignore the
+OCF_NOT_INSTALLED error returned from the script agent if
+we attempt to stop when a start failed.
+
+Furthermore, don't mark the resource as failed if a start
+failure occurs due to the program not existing.
+
+The combination of these create the ability for a missing
+script to move to a node where the script exists, or be
+placed in to the stopped state.
+
+Cherrypicked from STABLE32 (and RHEL59)
+
+Resolves: rhbz#853251
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Adam Drew <adrew@redhat.com>
+Tested-by: Adam Drew <adrew@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/restree.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/restree.c b/rgmanager/src/daemons/restree.c
+index a13f907..9cd38a2 100644
+--- a/rgmanager/src/daemons/restree.c
++++ b/rgmanager/src/daemons/restree.c
+@@ -464,6 +464,10 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
+ 
+ 		ret = WEXITSTATUS(ret);
+ 
++		if (node->rn_state == RES_STOPPED &&
++		    op == RS_STOP && ret == OCF_RA_NOT_INSTALLED)
++			ret = 0;
++
+ #ifndef NO_CCS
+ 		if ((op == RS_STATUS &&
+ 		     node->rn_state == RES_STARTED && ret) ||
+@@ -1468,7 +1472,8 @@ _res_op_internal(resource_node_t __attribute__ ((unused)) **tree,
+ 		}
+ 		node->rn_flags &= ~(RF_NEEDSTART | RF_RECONFIG);
+ 		if (rv != 0) {
+-			node->rn_state = RES_FAILED;
++			if (rv != OCF_RA_NOT_INSTALLED)
++				node->rn_state = RES_FAILED;
+ 			pthread_mutex_unlock(&node->rn_resource->r_mutex);
+ 			return SFL_FAILURE;
+ 		}
+-- 
+1.7.11.7
+

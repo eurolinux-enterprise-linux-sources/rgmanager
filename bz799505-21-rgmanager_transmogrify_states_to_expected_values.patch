@@ -1,0 +1,59 @@
+From f428fc18c95839c53d4b04f13ea84c529d77a024 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Tue, 24 Apr 2012 10:23:33 -0400
+Subject: [PATCH] rgmanager: Transmogrify states to expected values
+
+Because central_processing looks for state == 0 and LOCK_HELD is
+2, we need to flip the states to match DLM states.
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/clulib/cpg_lock.c |   23 +++++++++++++++++++++--
+ 1 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/clulib/cpg_lock.c b/rgmanager/src/clulib/cpg_lock.c
+index a747419..7cff2a3 100644
+--- a/rgmanager/src/clulib/cpg_lock.c
++++ b/rgmanager/src/clulib/cpg_lock.c
+@@ -24,15 +24,34 @@ dlm2cpg(struct dlm_lksb *dlm, struct cpg_lock *cpg)
+ {
+ 	memset(cpg, 0, sizeof(*cpg));
+ 	cpg->local_id = dlm->sb_lkid;
+-	cpg->state = dlm->sb_status;
++	switch(dlm->sb_status) {
++	case 0:
++		cpg->state = LOCK_HELD;
++		break;
++	case EINPROG:
++		cpg->state = LOCK_PENDING;
++		break;
++	default:
++		cpg->state = LOCK_FREE;
++		break;
++	}
+ }
+ 
+ static void
+ cpg2dlm(struct cpg_lock *cpg, struct dlm_lksb *dlm)
+ {
+ 	memset(dlm, 0, sizeof(*dlm));
+-	dlm->sb_status = cpg->state;
+ 	dlm->sb_lkid = cpg->local_id;
++	switch(cpg->state) {
++	case LOCK_HELD:
++		dlm->sb_status = 0;
++		break;
++	case LOCK_PENDING:
++	default:
++		/* XXX LOCK_FREE -> DLM state? */
++		dlm->sb_status = EINPROG;
++		break;
++	}
+ }
+ 
+ 
+-- 
+1.7.7.6
+

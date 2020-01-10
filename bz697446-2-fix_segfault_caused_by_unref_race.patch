@@ -1,0 +1,88 @@
+From c962af244c1c346dc444aa48282bc7b2f66dc486 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Wed, 7 Sep 2011 11:09:10 -0400
+Subject: [PATCH] rgmanager: Fix segfault caused by unref race
+
+Since we only ever open/close the connection in one
+place, there is no need to call ref/unref in the
+separate thread, since we wait for that thread to exit
+before calling DBus *close() and *unref() functions.
+
+It is possible for notification(s) to be sent during
+shutdown after shutting down the DBus connection.
+Since notifications are best-effort and having the
+DBus thread shut down is a normal condition, we should
+not log errors when this condition occurs.
+
+The rgm_dbus_notify() function was not locking around
+checks to the private db variable, which was incorrect.
+
+Resolves: rhbz#697446
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Tested-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/update-dbus.c |   16 +++++++++++-----
+ 1 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/rgmanager/src/daemons/update-dbus.c b/rgmanager/src/daemons/update-dbus.c
+index bff1644..b45113c 100644
+--- a/rgmanager/src/daemons/update-dbus.c
++++ b/rgmanager/src/daemons/update-dbus.c
+@@ -127,13 +127,11 @@ static void *
+ _dbus_auto_flush(void *arg)
+ {
+ 	/* DBus connection functions are thread safe */
+-	dbus_connection_ref(db);
+ 	while (dbus_connection_read_write(db, 500)) {
+ 		if (!th)
+ 			break;	
+ 	}
+ 
+-	dbus_connection_unref(db);
+ 	th = 0;
+ 	return NULL;
+ }
+@@ -147,7 +145,7 @@ _rgm_dbus_notify(const char *svcname,
+ 		 const char *svclast)
+ {
+ 	DBusMessage *msg = NULL;
+-	int ret = -1;
++	int ret = 0;
+ 
+ 	pthread_mutex_lock(&mu);
+ 
+@@ -155,6 +153,9 @@ _rgm_dbus_notify(const char *svcname,
+ 		goto out_unlock;
+ 	}
+ 
++	/* Notifications are enabled */
++	ret = -1;
++
+ 	/* Check to ensure the connection is still valid. If it
+ 	 * isn't, clean up and shut down the dbus connection.
+ 	 *
+@@ -215,12 +216,17 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
+ 
+ 	if (!rgm_dbus_notify)
+ 		goto out_free;
+-	if (!db)
+-		goto out_free;
+ 	if (view == 1)
+ 		goto out_free;
+ 	if (size != (sizeof(*st)))
+ 		goto out_free;
++	
++	pthread_mutex_lock(&mu);
++	if (!db) {
++		pthread_mutex_unlock(&mu);
++		goto out_free;
++	}
++	pthread_mutex_unlock(&mu);
+ 
+ 	st = (rg_state_t *)data;
+ 	swab_rg_state_t(st);
+-- 
+1.7.3.4
+

@@ -1,0 +1,209 @@
+From 682b27fe673efc20b65e0ea97ea23f72574eb81b Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 11:38:50 +0200
+Subject: [PATCH] cpglockd: cleanup startup init scripts and drop code
+ from rgmanager
+
+also fix conditionals to require or not cpglockd within rgmanager
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/cpglock-internal.h |    4 --
+ rgmanager/init.d/rgmanager.in        |   18 +++++++-
+ rgmanager/src/daemons/main.c         |   79 ++++++++++++----------------------
+ 3 files changed, 44 insertions(+), 57 deletions(-)
+
+diff --git a/rgmanager/include/cpglock-internal.h b/rgmanager/include/cpglock-internal.h
+index 27917c7..d6734eb 100644
+--- a/rgmanager/include/cpglock-internal.h
++++ b/rgmanager/include/cpglock-internal.h
+@@ -11,10 +11,6 @@
+ #define CPG_LOCKD_SOCK "/var/run/cpglockd.sk"
+ #endif
+ 
+-#ifndef CPGLOCKD_BIN_PATH
+-#	define CPGLOCKD_BIN_PATH "/usr/sbin/cpglockd"
+-#endif
+-
+ #include <stdint.h>
+ 
+ typedef enum {
+diff --git a/rgmanager/init.d/rgmanager.in b/rgmanager/init.d/rgmanager.in
+index 9e5a050..fcf7698 100644
+--- a/rgmanager/init.d/rgmanager.in
++++ b/rgmanager/init.d/rgmanager.in
+@@ -6,8 +6,8 @@
+ #
+ ### BEGIN INIT INFO
+ # Provides:		rgmanager
+-# Required-Start:	cman
+-# Required-Stop:	cman
++# Required-Start:	cman cpglockd
++# Required-Stop:	cman cpglockd
+ # Default-Start:
+ # Default-Stop:
+ # Short-Description:	Starts and stops Red Hat Service (resource group) Manager
+@@ -72,6 +72,15 @@ stop_cluster()
+ 	done
+ }
+ 
++#
++# start cpglock if necessary
++#
++start_cpglockd()
++{
++	rings="$(corosync-objctl 2>/dev/null |grep ringnumber | wc -l)"
++	[ "$rings" -gt "1" ] && service cpglockd start
++}
++
+ rtrn=0
+ 
+ if [ "$EUID" != "0" ]; then
+@@ -89,6 +98,11 @@ start)
+ 	# required subdirectories for proper operations
+ 	mkdir -p /var/run/cluster
+ 
++	# failure to start cpglockd should not be fatal here
++	# rgmanager will take care to report the correct errors
++	# later
++	start_cpglockd || true
++
+ 	if status $RGMGRD > /dev/null 2>&1; then
+ 		success
+ 	else
+diff --git a/rgmanager/src/daemons/main.c b/rgmanager/src/daemons/main.c
+index 3dc0e8a..e55e15e 100644
+--- a/rgmanager/src/daemons/main.c
++++ b/rgmanager/src/daemons/main.c
+@@ -794,73 +794,43 @@ statedump(int __attribute__ ((unused)) sig)
+ 	signalled++;
+ }
+ 
++/*
++ * return -1 on error
++ *         0 cpglock is not needed
++ *         1 cpglock is needed
++ */
+ static int
+ cpglockd_needed(void)
+ {
+ 	char *v;
+ 	int ccsfd;
+-	int start_cpglockd = 0;
+-
++	int need = 0;
+ 	ccsfd = ccs_force_connect(NULL, 0);
+ 	if (ccsfd < 0)
+ 		return -1;
+ 
+-	if (ccs_get(ccsfd, "/cluster/cman/altmulticast/@addr", &v) == 0) {
+-		if (v != NULL) {
+-			int ret;
+-			free(v);
+ 
+-			ret = ccs_get(ccsfd,
+-					"/cluster/clusternodes/clusternode/altname/@name", &v);
+-			if (ret == 0) {
+-				if (v != NULL) {
+-					free(v);
+-					start_cpglockd = 1;
+-				}
+-			}
++	if (ccs_get(ccsfd,
++		    "/cluster/clusternodes/clusternode/altname/@name", &v) == 0) {
++		if (v) {
++			need = 1;
++			free(v);
+ 		}
+ 	}
+ 
+-	if (start_cpglockd) {
++	if (need) {
+ 		if (ccs_get(ccsfd, "/cluster/totem/@rrp_mode", &v) == 0) {
+ 			if (v != NULL) {
+-				if (!strcasecmp(v, "none"))
+-					start_cpglockd = 0;
++				if (!strcasecmp(v, "none")) {
++					need = 0;
++				}
+ 				free(v);
+ 			}
+ 		}
+ 	}
+ 
+ 	ccs_disconnect(ccsfd);
+-	return start_cpglockd;
+-}
+-
+-static int
+-cpglockd_start(void) {
+-	int pid;
+-	int status;
+-
+-	pid = fork();
+-	if (pid == -1)
+-		return -1;
+-
+-	if (pid) {
+-		waitpid(pid, &status, 0);
+-		if (!WIFEXITED(status) || WEXITSTATUS(status)) {
+-			logt_print(LOG_NOTICE, "Unable to start cpglockd\n");
+-			return -1;
+-		}
+-	} else {
+-		int i;
+-
+-		for (i = 3 ; i < __FD_SETSIZE ; i++)
+-			close(i);
+-
+-		execl(CPGLOCKD_BIN_PATH, "cpglockd", NULL);
+-		exit(-1);
+-	}
+-
+-	return 0;
++	return need;
+ }
+ 
+ static int
+@@ -1143,11 +1113,18 @@ main(int argc, char **argv)
+ 	}
+ 
+ 	xmlInitParser();
+-	if (cpg_lock_opt == 1 || (cpg_lock_opt != -1 && cpglockd_needed() == 1)) {
+-		cpglockd_start();
++
++	cpg_locks = 0;
++	if (cpg_lock_opt == 1) { /* force enable */
+ 		cpg_locks = 1;
+-	} else
+-		cpg_locks = 0;
++	} else if (cpg_lock_opt == 0) { /* autodetect */
++		cpg_locks = cpglockd_needed();
++		if (cpg_locks < 0) {
++			printf("Unable to determine if cpglock is required!\n");
++			cman_finish(clu);
++			return -1;
++		}
++	}
+ 
+ 	if (!cpg_locks) {
+ 		if (clu_lock_init(rgmanager_lsname) != 0) {
+@@ -1156,12 +1133,12 @@ main(int argc, char **argv)
+ 			return -1;
+ 		}
+ 	} else {
++		logt_print(LOG_INFO, "Using CPG for locking (EXPERIMENTAL)\n");
+ 		if (cpg_lock_initialize() != 0) {
+ 			printf("Locks not working!\n");
+ 			cman_finish(clu);
+ 			return -1;
+ 		}
+-		logt_print(LOG_INFO, "Using CPG for locking (EXPERIMENTAL)\n");
+ 	}
+ 
+ 	memset(&me, 0, sizeof(me));
+-- 
+1.7.7.6
+

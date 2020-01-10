@@ -1,0 +1,45 @@
+From fdcec853307c5d9ce0517cb0088de2e970f76ae7 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Fri, 29 Jul 2011 13:30:38 -0400
+Subject: [PATCH] rgmanager: Add -F to clusvcadm man page
+
+Resolves: rhbz#745226
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/man/clusvcadm.8 |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/man/clusvcadm.8 b/rgmanager/man/clusvcadm.8
+index d5e09eb..055a0bf 100644
+--- a/rgmanager/man/clusvcadm.8
++++ b/rgmanager/man/clusvcadm.8
+@@ -8,7 +8,7 @@ clusvcadm \- Cluster User Service Administration Utility
+ .B ]
+ .B [\-e
+ .I <service>
+-.B ]
++.B [\-F] ]
+ .B [\-l]
+ .B [\-u]
+ .B [\-S]
+@@ -52,10 +52,15 @@ on which the command is invoked.
+ Stops and disables the user service named
+ .I
+ service
+-.IP "\-e <service>"
++.IP "\-e <service> [\-F]"
+ Enables and starts the user service named
+ .I
+ service
++
++Normally, rgmanager starts the service locally (i.e. on
++the host where clusvcadm was run).  However, if the \fB-F\fP
++option is specified, rgmanager will use the assigned failover
++domain rules as hints on where to start the service.
+ .IP \-l
+ Lock services in preparation for cluster shutdown.  This should only
+ be used if the administrator intends to perform a global, cluster
+-- 
+1.7.7.6
+

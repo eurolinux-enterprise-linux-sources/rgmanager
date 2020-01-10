@@ -1,0 +1,88 @@
+From 8d3265089fcb45cb6653c2c6947f78ab9e996be5 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Thu, 27 Sep 2012 15:08:52 -0400
+Subject: [PATCH] rgmanager: Fix for deadlock
+
+This patch fixes a deadlock in rgmanager that could occur when a node
+starts rgmanager while a service is recovering.
+
+Resolves: rhbz#861157
+
+Acked-by: Lon Hohberger <lhh@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/rg_state.c   |  1 +
+ rgmanager/src/daemons/rg_thread.c  | 19 ++++++++++++++++++-
+ rgmanager/src/daemons/service_op.c |  1 +
+ 3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 8c5af5b..80e8667 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -1963,6 +1963,7 @@ retry:
+ 			/* Deliberate */
+ 		case RG_EDEPEND:
+ 		case RG_EFAIL:
++		case RG_EDEADLCK:
+ 			/* Uh oh - we failed to relocate to this node.
+ 			   ensure that we tell the next node to start it from
+ 			   the 'recovering' state. */
+diff --git a/rgmanager/src/daemons/rg_thread.c b/rgmanager/src/daemons/rg_thread.c
+index 72b5f96..5e551c3 100644
+--- a/rgmanager/src/daemons/rg_thread.c
++++ b/rgmanager/src/daemons/rg_thread.c
+@@ -9,6 +9,8 @@
+ #include <rg_queue.h>
+ #include <assert.h>
+ #include <members.h>
++#include <liblogthread.h>
++
+ 
+ /**
+  * Resource thread list entry.
+@@ -735,13 +737,28 @@ rt_enqueue_request(const char *resgroupname, int request,
+ 			ret = 0;
+ 			break;
+ 		}
+-		fprintf(stderr, "Failed to queue request: Would block\n");
+ 		/* EWOULDBLOCK */
+ 		pthread_mutex_unlock(resgroup->rt_queue_mutex);
+ 		pthread_mutex_unlock(&reslist_mutex);
++		logt_print(LOG_DEBUG,
++			"Failed to queue %d request for %s: Would block\n",
++			request, resgroupname);
+ 		return ret;
+ 	}
+ 
++	if (resgroup->rt_request == RG_START &&
++	    (request == RG_START_REMOTE || request == RG_START_RECOVER)) {
++		send_ret(response_ctx, resgroup->rt_name, RG_EDEADLCK,
++			request, 0);
++		msg_free_ctx(response_ctx);
++		pthread_mutex_unlock(resgroup->rt_queue_mutex);
++		pthread_mutex_unlock(&reslist_mutex);
++		logt_print(LOG_DEBUG,
++			"Failed to queue %d request for %s: Would block\n",
++			request, resgroupname);
++		return -1;
++	}
++
+ 	ret = rq_queue_request(resgroup->rt_queue, resgroup->rt_name,
+ 			       request, 0, 0, response_ctx, 0, target,
+ 			       arg0, arg1);
+diff --git a/rgmanager/src/daemons/service_op.c b/rgmanager/src/daemons/service_op.c
+index f094129..4b74427 100644
+--- a/rgmanager/src/daemons/service_op.c
++++ b/rgmanager/src/daemons/service_op.c
+@@ -62,6 +62,7 @@ service_op_start(char *svcName,
+ 			++dep;
+ 			continue;
+ 		case RG_EFAIL:
++		case RG_EDEADLCK:
+ 			++fail;
+ 			continue;
+ 		case RG_EABORT:
+-- 
+1.7.11.4
+

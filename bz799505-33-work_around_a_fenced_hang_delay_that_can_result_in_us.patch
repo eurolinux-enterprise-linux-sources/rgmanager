@@ -1,0 +1,128 @@
+From 4c63dc81ecaaa45aa7365a669a9b26fe0e636cc7 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Thu, 26 Apr 2012 14:12:37 -0400
+Subject: [PATCH] Work around a fenced hang/delay that can result in us
+ unpausing too soon while waiting for fencing to
+ complete.
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |   53 +++++++++++++++++++++++++-------------
+ 1 files changed, 35 insertions(+), 18 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index fa40e98..f101084 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -40,6 +40,7 @@ struct lock_node {
+ struct pending_fence_node {
+ 	list_head();
+ 	int nodeid;
++	int force_wait;
+ 	uint64_t fail_time;
+ };
+ 
+@@ -96,6 +97,22 @@ flag_shutdown(int __attribute__ ((unused)) sig)
+ 	shutdown_pending = 1;
+ }
+ 
++
++static int
++is_member(uint32_t nodeid)
++{
++	struct member_node *n;
++	int x;
++
++	list_for(&group_members, n, x) {
++		if (n->nodeid == nodeid)
++			return 1;
++	}
++
++	return 0;
++}
++
++
+ static int
+ cman_nodes_lost(cman_node_t *old_nodes,
+ 				size_t old_node_len,
+@@ -221,6 +238,14 @@ cman_callback(cman_handle_t ch, void *privdata, int reason, int arg)
+ 				pf = do_alloc(sizeof(*pf));
+ 				pf->nodeid = cur_nodeid;
+ 				pf->fail_time = cur_time;
++				/*
++ 				** If the node is also a member of the cpglock group, wait
++ 				** for positive confirmation from fenced that it was fenced.
++				** It cannot have shut down cleanly if we did not process a
++				** DELETE for it yet.
++				*/
++				if (is_member(cur_nodeid))
++					pf->force_wait = 1;
+ 				list_append(&pending_fencing, pf);
+ 			} else {
+ 				logt_print(LOG_DEBUG, "Lost node %d but fencing not configured\n",
+@@ -904,21 +929,6 @@ process_lock(struct cpg_lock_msg *m)
+ 
+ 
+ static int
+-is_member(uint32_t nodeid)
+-{
+-	struct member_node *n;
+-	int x;
+-
+-	list_for(&group_members, n, x) {
+-		if (n->nodeid == nodeid)
+-			return 1;
+-	}
+-
+-	return 0;
+-}
+-
+-
+-static int
+ process_grant(struct cpg_lock_msg *m, uint32_t nodeid)
+ {
+ 	struct lock_node *l;
+@@ -1645,7 +1655,8 @@ main(int argc, char **argv)
+ 			}
+ 
+ 			if (lft > pf_node->fail_time) {
+-				logt_print(LOG_DEBUG, "Fencing for node %d finished at %ld (>%ld)\n",
++				logt_print(LOG_DEBUG,
++					"Fencing for node %d finished at %ld (>%ld)\n",
+ 					pf_node->nodeid, lft, pf_node->fail_time);
+ 				list_remove(&pending_fencing, pf_node);
+ 				free(pf_node);
+@@ -1663,13 +1674,14 @@ main(int argc, char **argv)
+ 			** victim to 1 by now, we can deduce it has left cleanly, and we
+ 			** don't need to wait for it.
+ 			*/
+-			if (!victim && !x) {
++			if (!victim && !x && !pf_node->force_wait) {
+ 				int retries = 0;
+ 				/* Wait up to 1s for fenced to set victim */
+ 				do {
+ 					usleep(250000);
+ 					if (fenced_node_info(pf_node->nodeid, &fn) < 0) {
+-						logt_print(LOG_DEBUG, "Unable to get fenced data for node %d\n",
++						logt_print(LOG_DEBUG,
++							"Unable to get fenced data for node %d\n",
+ 							pf_node->nodeid);
+ 					} else
+ 						victim = fn.victim;
+@@ -1685,6 +1697,11 @@ main(int argc, char **argv)
+ 				}
+ 				goto fence_check;
+ 			}
++			if (!victim && !x && pf_node->force_wait) {
++				logt_print(LOG_DEBUG, "Would have removed %d but now waiting\n",
++					pf_node->nodeid);
++			}
++					
+ 		}
+ 
+ 		if (shutdown_pending)
+-- 
+1.7.7.6
+

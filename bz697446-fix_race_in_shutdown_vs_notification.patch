@@ -1,0 +1,40 @@
+From 53d23b0172773b2a17bb2a019d4bbc2118d9e307 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Tue, 2 Aug 2011 09:53:20 -0400
+Subject: [PATCH] rgmanager: Fix race in shutdown vs. notification
+
+The check of db prior to taking the mutex was done as a tiny performance
+gain in the event that there was no dbus connection, but causes
+dbus_connection_get_is_connected() to crash the program if db is NULL.
+
+Resolves: rhbz#697446
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/update-dbus.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/rgmanager/src/daemons/update-dbus.c b/rgmanager/src/daemons/update-dbus.c
+index f465d1d..bff1644 100644
+--- a/rgmanager/src/daemons/update-dbus.c
++++ b/rgmanager/src/daemons/update-dbus.c
+@@ -149,12 +149,12 @@ _rgm_dbus_notify(const char *svcname,
+ 	DBusMessage *msg = NULL;
+ 	int ret = -1;
+ 
++	pthread_mutex_lock(&mu);
++
+ 	if (!db) {
+-		goto out_free;
++		goto out_unlock;
+ 	}
+ 
+-	pthread_mutex_lock(&mu);
+-
+ 	/* Check to ensure the connection is still valid. If it
+ 	 * isn't, clean up and shut down the dbus connection.
+ 	 *
+-- 
+1.7.3.4
+

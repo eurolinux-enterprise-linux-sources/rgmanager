@@ -1,0 +1,33 @@
+From d8825398b6b75f988b86bec0b5a76aab45f16da5 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Sun, 22 Jun 2014 20:54:06 -0400
+Subject: [PATCH] rgmanager: Don't crash if a resource agent does not
+ specify a primary attribute
+
+Fix a crash that would occur if an errant resource agent did not specify a
+primary attribute.
+
+Resolves: rhbz#1018079
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/reslist.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/rgmanager/src/daemons/reslist.c b/rgmanager/src/daemons/reslist.c
+index e1695fb..2a50f17 100644
+--- a/rgmanager/src/daemons/reslist.c
++++ b/rgmanager/src/daemons/reslist.c
+@@ -260,6 +260,9 @@ find_resource_by_ref(resource_t **reslist, const char *type, const char *ref)
+ 	resource_t *first_possible = NULL;
+ 	int x, flags = RA_UNIQUE|RA_REQUIRED;
+ 
++	if (!ref)
++		return NULL;
++
+ 	list_do(reslist, curr) {
+ 		if (strcmp(curr->r_rule->rr_type, type))
+ 			continue;
+-- 
+1.9.3
+

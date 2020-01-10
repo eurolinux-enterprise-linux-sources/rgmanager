@@ -1,0 +1,64 @@
+From 471d50729f5240feb2d4d240c4a08c12cdef0ae8 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Fri, 12 Jul 2013 15:36:35 -0400
+Subject: [PATCH] rgmanager: Fix for double pthread_mutex_unlock() calls
+
+Fix a few places where pthread_mutex_unlock() could be called
+on an unlocked mutex.
+
+Resolves: rhbz#983296
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/clulib/vft.c       | 4 ++--
+ rgmanager/src/daemons/rg_event.c | 5 ++---
+ 2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/rgmanager/src/clulib/vft.c b/rgmanager/src/clulib/vft.c
+index 0113bad..ad1f468 100644
+--- a/rgmanager/src/clulib/vft.c
++++ b/rgmanager/src/clulib/vft.c
+@@ -1007,7 +1007,6 @@ vf_key_init_nt(const char *keyid, int timeout, vf_vote_cb_t vote_cb,
+ 	newnode = kn_find_key(keyid);
+ 	if (newnode) {
+ 		printf("Key %s already initialized\n", keyid);
+-		pthread_mutex_unlock(&key_list_mutex);
+ 		return -1;
+ 	}
+ 
+@@ -1015,7 +1014,6 @@ vf_key_init_nt(const char *keyid, int timeout, vf_vote_cb_t vote_cb,
+ 
+ 	if (newnode == NULL) {
+ 		fprintf(stderr, "malloc fail3 err=%d\n", errno);
+-		pthread_mutex_unlock(&key_list_mutex);
+ 		return -1;
+ 	}
+ 
+@@ -1493,6 +1491,8 @@ vf_read(cluster_member_list_t *membership, const char *keyid, uint64_t *view,
+ 			pthread_mutex_unlock(&vf_mutex);
+ 			return l;
+ 		}
++
++		pthread_mutex_lock(&key_list_mutex);
+ 	}
+ 
+ 	*data = malloc(key_node->kn_datalen);
+diff --git a/rgmanager/src/daemons/rg_event.c b/rgmanager/src/daemons/rg_event.c
+index 6b1023a..4a747e0 100644
+--- a/rgmanager/src/daemons/rg_event.c
++++ b/rgmanager/src/daemons/rg_event.c
+@@ -332,9 +332,8 @@ event_master(void)
+ 			//logt_print(LOG_DEBUG, "%d is master\n", mi->m_nodeid);
+ 			goto out;
+ 		}
+-	}
+-
+-	pthread_mutex_unlock(&mi_mutex);
++	} else
++		pthread_mutex_unlock(&mi_mutex);
+ 
+ 	memset(&_master_lock, 0, sizeof(_master_lock));
+ 	if (clu_lock(LKM_EXMODE, &_master_lock, LKF_NOQUEUE,
+-- 
+1.8.3.1
+

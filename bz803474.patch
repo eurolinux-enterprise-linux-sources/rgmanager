@@ -1,0 +1,41 @@
+diff --git a/rgmanager/src/daemons/main.c b/rgmanager/src/daemons/main.c
+index 94047c3..9a1e5e9 100644
+--- a/rgmanager/src/daemons/main.c
++++ b/rgmanager/src/daemons/main.c
+@@ -456,7 +456,13 @@ dispatch_msg(msgctx_t *ctx, int nodeid, int need_close)
+ 			/* Centralized processing or request is from
+ 			   clusvcadm */
+ 			nid = event_master();
+-			if (nid != my_id()) {
++			if (nid < 0) {
++				logt_print(LOG_ERR, "#40b: Unable to determine "
++					"event master\n");
++				ret = -1;
++				goto out;
++			}
++			else if (nid != my_id()) {
+ 				/* Forward the message to the event master */
+ 				forward_message(ctx, msg_sm, nid);
+ 			} else {
+diff --git a/rgmanager/src/daemons/rg_event.c b/rgmanager/src/daemons/rg_event.c
+index 7048bc6..e6a2abd 100644
+--- a/rgmanager/src/daemons/rg_event.c
++++ b/rgmanager/src/daemons/rg_event.c
+@@ -247,7 +247,7 @@ static int
+ find_master(void)
+ {
+ 	event_master_t *masterinfo = NULL;
+-	void *data;
++	void *data = NULL;
+ 	uint32_t sz;
+ 	cluster_member_list_t *m;
+ 	uint64_t vn;
+@@ -255,7 +255,7 @@ find_master(void)
+ 
+ 	m = member_list();
+ 	if (vf_read(m, "Transition-Master", &vn,
+-		    (void **)(&data), &sz) < 0) {
++		    (void **)(&data), &sz) != VFR_OK) {
+ 		logt_print(LOG_ERR, "Unable to discover master"
+ 		       " status\n");
+ 		masterinfo = NULL;

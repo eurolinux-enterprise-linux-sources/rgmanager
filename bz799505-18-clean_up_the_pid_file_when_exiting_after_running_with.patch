@@ -1,0 +1,29 @@
+From 9757156c569b05517cdc6173e334f22829e07854 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 24 Apr 2012 09:16:31 -0400
+Subject: [PATCH] Clean up the pid file when exiting after running with
+ -f
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index aa052b3..9f9f635 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -1649,7 +1649,6 @@ out2:
+ out3:
+ 	cman_finish(cman_handle);
+ out4:
+-	if (!nofork)
+-		daemon_cleanup();
++	daemon_cleanup();
+ 	return exit_status;
+ }
+-- 
+1.7.7.6
+

@@ -1,0 +1,41 @@
+From 5234c99004f03016aeade7ab3c950fd7bd450f31 Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 14:36:50 +0200
+Subject: [PATCH] cpglock: drop unused define
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/cpglock-internal.h |    2 --
+ rgmanager/src/clulib/libcpglock.c    |    1 -
+ 2 files changed, 0 insertions(+), 3 deletions(-)
+
+diff --git a/rgmanager/include/cpglock-internal.h b/rgmanager/include/cpglock-internal.h
+index d6734eb..25725c6 100644
+--- a/rgmanager/include/cpglock-internal.h
++++ b/rgmanager/include/cpglock-internal.h
+@@ -37,8 +37,6 @@ struct __attribute__((packed)) cpg_lock_msg {
+ 	char pad[8];
+ }; /* 128 */
+ 
+-pid_t _gettid (void);
+-
+ #define CPG_LOCKD_NAME "cpglockd"
+ 
+ #endif
+diff --git a/rgmanager/src/clulib/libcpglock.c b/rgmanager/src/clulib/libcpglock.c
+index 9fe5ead..d554281 100644
+--- a/rgmanager/src/clulib/libcpglock.c
++++ b/rgmanager/src/clulib/libcpglock.c
+@@ -226,7 +226,6 @@ cpg_unlock(void *handle, struct cpg_lock *lock)
+ 	l.owner_nodeid = lock->owner_nodeid;
+ 	l.owner_pid = lock->owner_pid;
+ 	l.lockid = lock->local_id;
+-	//l.owner_tid = _gettid();
+ 	l.owner_tid = 0;
+ 	lock->state = LOCK_FREE;
+ 	
+-- 
+1.7.7.6
+

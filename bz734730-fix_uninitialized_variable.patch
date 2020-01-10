@@ -1,0 +1,29 @@
+From 3a113c9b3b60f2a18a3b653b83edac5c89074af7 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Tue, 6 Sep 2011 15:41:03 -0400
+Subject: [PATCH] rgmanager: Fix uninitialized variable
+
+Resolves: rhbz#734730
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/main.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/daemons/main.c b/rgmanager/src/daemons/main.c
+index 38c7007..94047c3 100644
+--- a/rgmanager/src/daemons/main.c
++++ b/rgmanager/src/daemons/main.c
+@@ -798,7 +798,7 @@ rgmanager_disabled(int ccsfd)
+ {
+ 	char *v;
+ 	int disabled = 0;
+-	int internal;
++	int internal = 0;
+ 
+ 	if (ccsfd < 0) {
+ 		internal = 1;
+-- 
+1.7.3.4
+

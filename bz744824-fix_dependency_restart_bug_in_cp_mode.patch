@@ -1,0 +1,40 @@
+From 4fbd15844e11e3677e865779e57b5943ca6f3c99 Mon Sep 17 00:00:00 2001
+From: Adam Drew <adrew@redhat.com>
+Date: Fri, 7 Oct 2011 12:31:16 -0400
+Subject: [PATCH] rgmanager: Fix dependency restart bug in CP mode
+
+If we:
+ - had central_processing mode enabled,
+ - had a service with 'depend' set on another
+   service,
+ - we attempted to restart the service with the
+   dependency, and
+ - the dependency was missing
+
+rgmanager would leave the state in 'recovering'
+
+This is the corrected patch from Adam.
+
+Resolves: rhbz#744824
+
+Signed-off-by: Adam Drew <adrew@redhat.com>
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/resources/default_event_script.sl |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/rgmanager/src/resources/default_event_script.sl b/rgmanager/src/resources/default_event_script.sl
+index b14f466..c54c068 100644
+--- a/rgmanager/src/resources/default_event_script.sl
++++ b/rgmanager/src/resources/default_event_script.sl
+@@ -180,6 +180,7 @@ define move_or_start(service, node_list)
+                     ((event_type == EVENT_NODE) and (owner == node_id) and
+ 		     (node_state == 0))) {
+ 			debug(service, " is not runnable; dependency not met");
++			()=service_stop(service);
+ 			return ERR_DEPEND;
+ 		}
+ 	}
+-- 
+1.7.7.6
+

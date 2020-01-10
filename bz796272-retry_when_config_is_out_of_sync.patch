@@ -1,0 +1,78 @@
+From af612b16a8b565a0e3543850367e0b58a43922cd Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Thu, 5 Aug 2010 16:53:22 -0400
+Subject: [PATCH] rgmanager: Retry when config is out of sync
+
+If you add a service to rgmanager v1 or v2 and that
+service fails to start on the first node but succeeds
+in its initial stop operation, there is a chance that
+the remote instance of rgmanager has not yet reread
+the configuration, causing the service to be placed
+into the 'recovering' state without further action.
+
+This patch causes the originator of the request to
+retry the operation.
+
+Later versions of rgmanager (ex STABLE3 branch and
+derivatives) are unlikely to have this problem since
+configuration updates are not polled, but rather
+delivered to clients.
+
+Update 22-Feb-2012: The above is incorrect, this was
+reproduced a rgmanager v3 installation.
+
+Resolves: rhbz#796272
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/rg_state.c |   19 +++++++++++++++++++
+ 1 files changed, 19 insertions(+), 0 deletions(-)
+
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 23a4bec..8c5af5b 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -1801,6 +1801,7 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
+ 	rg_state_t svcStatus;
+ 	int target = preferred_target, me = my_id();
+ 	int ret, x, request = orig_request;
++	int retries;
+ 	
+ 	get_rg_state_local(svcName, &svcStatus);
+ 	if (svcStatus.rs_state == RG_STATE_DISABLED ||
+@@ -1933,6 +1934,8 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
+ 		if (target == me)
+ 			goto exhausted;
+ 
++		retries = 0;
++retry:
+ 		ret = svc_start_remote(svcName, request, target);
+ 		switch (ret) {
+ 		case RG_ERUN:
+@@ -1942,6 +1945,22 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
+ 			*new_owner = svcStatus.rs_owner;
+ 			free_member_list(allowed_nodes);
+ 			return 0;
++		case RG_ENOSERVICE:
++			/*
++			 * Configuration update pending on remote node?  Give it
++			 * a few seconds to sync up.  rhbz#568126
++			 *
++			 * Configuration updates are synchronized in later releases
++			 * of rgmanager; this should not be needed.
++			 */
++			if (retries++ < 4) {
++				sleep(3);
++				goto retry;
++			}
++			logt_print(LOG_WARNING, "Member #%d has a different "
++				   "configuration than I do; trying next "
++				   "member.", target);
++			/* Deliberate */
+ 		case RG_EDEPEND:
+ 		case RG_EFAIL:
+ 			/* Uh oh - we failed to relocate to this node.
+-- 
+1.7.7.6
+

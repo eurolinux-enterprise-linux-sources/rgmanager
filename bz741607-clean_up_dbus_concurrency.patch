@@ -1,0 +1,65 @@
+From a8cca57d6dd0026ac49c87b0dd9e9906cc7872cb Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Wed, 28 Sep 2011 10:56:54 -0400
+Subject: [PATCH] rgmanager: Clean up DBus concurrency
+
+This centralizes creation/deletion of the DBus
+dispatch thread.
+
+Resolves: rhbz#741607
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-By: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/update-dbus.c |   14 ++++++++++++--
+ 1 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/daemons/update-dbus.c b/rgmanager/src/daemons/update-dbus.c
+index b45113c..29ecaca 100644
+--- a/rgmanager/src/daemons/update-dbus.c
++++ b/rgmanager/src/daemons/update-dbus.c
+@@ -18,6 +18,8 @@
+ #define DBUS_RGM_IFACE	"com.redhat.cluster.rgmanager"
+ #define DBUS_RGM_PATH	"/com/redhat/cluster/rgmanager"
+ 
++static void * _dbus_auto_flush(void *arg);
++
+ static DBusConnection *db = NULL;
+ static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_t th = 0;
+@@ -58,6 +60,9 @@ rgm_dbus_init(void)
+ 	dbus_connection_set_exit_on_disconnect(dbc, FALSE);
+ 
+ 	db = dbc;
++
++	pthread_create(&th, NULL, _dbus_auto_flush, NULL);
++
+ 	pthread_mutex_unlock(&mu);
+ 	logt_print(LOG_DEBUG, "DBus Notifications Initialized\n");
+ 	return 0;
+@@ -169,8 +174,7 @@ _rgm_dbus_notify(const char *svcname,
+ 	}
+ 
+ 	if (!th) {
+-		/* start auto-flush thread if needed */
+-		pthread_create(&th, NULL, _dbus_auto_flush, NULL);
++		goto out_unlock;
+ 	}
+ 
+ 	if (!(msg = dbus_message_new_signal(DBUS_RGM_PATH,
+@@ -226,6 +230,12 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
+ 		pthread_mutex_unlock(&mu);
+ 		goto out_free;
+ 	}
++	if (!th) {
++		/* Dispatch thread died. */
++		_rgm_dbus_release();
++		pthread_mutex_unlock(&mu);
++		goto out_free;
++	}
+ 	pthread_mutex_unlock(&mu);
+ 
+ 	st = (rg_state_t *)data;
+-- 
+1.7.3.4
+

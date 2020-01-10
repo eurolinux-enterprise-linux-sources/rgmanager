@@ -1,0 +1,87 @@
+From 1e1c4989fcb4e3a447deed560cda823be7535296 Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 14:55:01 +0200
+Subject: [PATCH] cpglockd: make network comm endian free
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/cpglock-internal.h |    6 +++---
+ rgmanager/src/daemons/cpglockd.c     |   15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/rgmanager/include/cpglock-internal.h b/rgmanager/include/cpglock-internal.h
+index 25725c6..904df37 100644
+--- a/rgmanager/include/cpglock-internal.h
++++ b/rgmanager/include/cpglock-internal.h
+@@ -26,16 +26,16 @@ typedef enum {
+ } cpg_lock_req_t;
+ 
+ /* Mixed architecture not supported yet */
+-struct __attribute__((packed)) cpg_lock_msg {
+-	char resource[96];
++struct cpg_lock_msg {
+ 	int32_t request;
+ 	uint32_t owner_nodeid;
+ 	uint32_t owner_pid;
+ 	uint32_t flags;
+ 	uint32_t lockid;
+ 	uint32_t owner_tid;
++	char resource[96];
+ 	char pad[8];
+-}; /* 128 */
++} __attribute__((packed)); /* 128 */
+ 
+ #define CPG_LOCKD_NAME "cpglockd"
+ 
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 1bd53d3..aa052b3 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -24,6 +24,7 @@
+ #include "cpglock.h"
+ #include "cpglock-internal.h"
+ #include "list.h"
++#include "platform.h"
+ 
+ struct request_node {
+ 	list_head();
+@@ -398,6 +399,16 @@ insert_client(int fd)
+ 	list_append(&clients, n);
+ }
+ 
++static void
++swab_cpg_lock_msg(struct cpg_lock_msg *m)
++{
++	swab32(m->request);
++	swab32(m->owner_nodeid);
++	swab32(m->owner_pid);
++	swab32(m->flags);
++	swab32(m->lockid);
++	swab32(m->owner_tid);
++}
+ 
+ /* forward request from client */
+ static int
+@@ -406,6 +417,8 @@ send_lock_msg(struct cpg_lock_msg *m)
+ 	struct iovec iov;
+ 	int ret;
+ 
++	swab_cpg_lock_msg(m);
++
+ 	iov.iov_base = m;
+ 	iov.iov_len = sizeof (*m);
+ 
+@@ -1096,6 +1109,8 @@ process_join(struct cpg_lock_msg *m, uint32_t nodeid, uint32_t pid)
+ static int
+ process_request(struct cpg_lock_msg *m, uint32_t nodeid, uint32_t pid)
+ {
++	swab_cpg_lock_msg(m);
++
+ 	if (m->request == MSG_HALT) {
+ 		cpgl_debug("FAULT: Halting operations; see node %d\n", m->owner_nodeid);
+ 		while (1) 
+-- 
+1.7.7.6
+

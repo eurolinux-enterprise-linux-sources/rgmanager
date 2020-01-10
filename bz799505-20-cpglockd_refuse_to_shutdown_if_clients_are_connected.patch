@@ -1,0 +1,40 @@
+From 07b7db55437342aab9d51852121d96e4bff2b6c1 Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Tue, 24 Apr 2012 15:58:31 +0200
+Subject: [PATCH] cpglockd: refuse to shutdown if clients are connected
+
+or bad things will happen
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 47cbcdc..7e1ae33 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -89,6 +89,10 @@ static void init_logging(int reconf);
+ static void
+ flag_shutdown(int __attribute__ ((unused)) sig)
+ {
++	if (clients) {
++		logt_print(LOG_INFO, "Clients are connected to cpglockd. Refusing to shutdown\n");
++		return;
++	}
+ 	shutdown_pending = 1;
+ }
+ 
+@@ -1429,6 +1433,7 @@ main(int argc, char **argv)
+ 
+ 	setup_signal(SIGPIPE, SIG_IGN);
+ 	setup_signal(SIGTERM, flag_shutdown);
++	setup_signal(SIGINT, flag_shutdown);
+ 
+ 	cman_connect(&cman_handle);
+ 	if (cman_handle == NULL) {
+-- 
+1.7.7.6
+

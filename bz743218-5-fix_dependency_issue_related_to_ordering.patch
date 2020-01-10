@@ -1,0 +1,36 @@
+From 4758c35d2a9862bd7a8ac79d5c2239b6a79ca0bf Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Thu, 5 Jan 2012 10:43:12 -0500
+Subject: [PATCH] rgmanager: Fix dependency issue related to ordering
+
+If you ordered two services the opposite way in cluster.conf
+('b' first, which depends on 'a'), then rgmanager would fail
+over 'b' despite the fact that 'a' was not running yet - this
+is because the state of 'a' was not set to 'stopped' - so we
+need to check for a node-death event in move_or_start().
+
+Resolves: rhbz#743218
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/resources/default_event_script.sl |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/src/resources/default_event_script.sl b/rgmanager/src/resources/default_event_script.sl
+index f3b35cd..b14f466 100644
+--- a/rgmanager/src/resources/default_event_script.sl
++++ b/rgmanager/src/resources/default_event_script.sl
+@@ -176,7 +176,9 @@ define move_or_start(service, node_list)
+ 	depends = service_property(service, "depend");
+ 	if (depends != "") {
+ 		(,,, owner, state) = service_status(depends);
+-		if (owner < 0) {
++		if ((owner < 0) or
++                    ((event_type == EVENT_NODE) and (owner == node_id) and
++		     (node_state == 0))) {
+ 			debug(service, " is not runnable; dependency not met");
+ 			return ERR_DEPEND;
+ 		}
+-- 
+1.7.7.6
+

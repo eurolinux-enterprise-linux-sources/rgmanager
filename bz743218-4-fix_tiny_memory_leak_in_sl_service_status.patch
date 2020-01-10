@@ -1,0 +1,112 @@
+From 2543119ffd1ee25ff8e6f205f696f1f53a5292cf Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Thu, 5 Jan 2012 10:12:05 -0500
+Subject: [PATCH] rgmanager: Fix tiny memory leak in sl_service_status
+
+Resolves: rhbz#743218
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/daemons/slang_event.c |   23 ++++++++++++++---------
+ 1 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/rgmanager/src/daemons/slang_event.c b/rgmanager/src/daemons/slang_event.c
+index c302de5..45110a3 100644
+--- a/rgmanager/src/daemons/slang_event.c
++++ b/rgmanager/src/daemons/slang_event.c
+@@ -209,7 +209,8 @@ get_service_state_internal(const char *svcName, rg_state_t *svcStatus)
+ 		service_status(servicename)
+ 
+ For extra information (flags, transition time)
+-   (transition_time, flags, rte, restarts, owner, state) = 
++   (transition_time, flags, rte, restarts, last_owner, 
++    owner, state) = 
+                 service_status(servicename, 1);
+  */
+ static void
+@@ -273,7 +274,7 @@ sl_service_status(void)
+ 			     (char *)"%s: Failed to get status for %s",
+ 			     __FUNCTION__,
+ 			     svcName);
+-		return;
++		goto out_free;
+ 	}
+ 
+ 	if (extra) {
+@@ -285,7 +286,7 @@ sl_service_status(void)
+ 				     (char *)"%s: Failed to push mtime %s",
+ 				     __FUNCTION__,
+ 				     svcName);
+-			return;
++			goto out_free;
+ 		}
+ 
+ 		flags = (int)svcStatus.rs_flags;
+@@ -294,7 +295,7 @@ sl_service_status(void)
+ 				     (char *)"%s: Failed to push flags %s",
+ 				     __FUNCTION__,
+ 				     svcName);
+-			return;
++			goto out_free;
+ 		}
+ 	}
+ 
+@@ -304,7 +305,7 @@ sl_service_status(void)
+ 			     (char *)"%s: Failed to push restarts_exceeded %s",
+ 			     __FUNCTION__,
+ 			     svcName);
+-		return;
++		goto out_free;
+ 	}
+ 
+ 	if (SLang_push_integer(svcStatus.rs_restarts) < 0) {
+@@ -312,7 +313,7 @@ sl_service_status(void)
+ 			     (char *)"%s: Failed to push restarts for %s",
+ 			     __FUNCTION__,
+ 			     svcName);
+-		return;
++		goto out_free;
+ 	}
+ 
+ 	if (SLang_push_integer(svcStatus.rs_last_owner) < 0) {
+@@ -320,7 +321,7 @@ sl_service_status(void)
+ 			     (char *)"%s: Failed to push last owner of %s",
+ 			     __FUNCTION__,
+ 			     svcName);
+-		return;
++		goto out_free;
+ 	}
+ 
+ 	switch(svcStatus.rs_state) {
+@@ -338,7 +339,7 @@ sl_service_status(void)
+ 			     (char *)"%s: Failed to push owner of %s",
+ 			     __FUNCTION__,
+ 			     svcName);
+-		return;
++		goto out_free;
+ 	}
+ 
+ 	if (svcStatus.rs_flags & RG_FLAG_FROZEN) {
+@@ -354,7 +355,7 @@ sl_service_status(void)
+ 			     (char *)"%s: Failed to duplicate state of %s",
+ 			     __FUNCTION__,
+ 			     svcName);
+-		return;
++		goto out_free;
+ 	}
+ 
+ 	if (SLang_push_malloced_string(state_str) < 0) {
+@@ -364,6 +365,10 @@ sl_service_status(void)
+ 			     svcName);
+ 		free(state_str);
+ 	}
++
++out_free:
++	if (svcName)
++		free(svcName);
+ }
+ 
+ 
+-- 
+1.7.7.6
+

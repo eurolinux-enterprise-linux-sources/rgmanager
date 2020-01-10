@@ -1,0 +1,38 @@
+From 84afab18b0e17080dcc7868060231d3282d4ab51 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 25 Apr 2012 13:07:54 -0400
+Subject: [PATCH] Add some additional debugging logging for try-locks
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 689c494..1f69ef8 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -478,6 +478,8 @@ send_grant(struct request_node *n)
+ static int  
+ send_nak(struct cpg_lock_msg *m)
+ {
++	logt_print(LOG_DEBUG, "-> sending NAK %s to %d:%d:%d\n",
++		m->resource, m->owner_nodeid, m->owner_pid, m->owner_tid);
+ 	m->request = MSG_NAK;
+ 
+ 	return send_lock_msg(m);
+@@ -1013,6 +1015,9 @@ process_nak(struct cpg_lock_msg *m, uint32_t nodeid)
+ 	if (!joined)
+ 		return 0;
+ 
++	logt_print(LOG_DEBUG, "NAK %s for %d:%d:%d\n", m->resource,
++	       m->owner_nodeid, m->owner_pid, m->owner_tid);
++
+ 	list_for(&requests, r, y) {
+ 		if (strcmp(r->l.resource, m->resource))
+ 			continue;
+-- 
+1.7.7.6
+

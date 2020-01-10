@@ -1,0 +1,69 @@
+From f4bc657f47270e15f2156cc28a32effc3f1c9af3 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Mon, 23 Apr 2012 10:55:58 -0400
+Subject: [PATCH] rgmanager: Add a utility to dump the cpglockd state
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/src/daemons/Makefile      |   10 ++++++++--
+ rgmanager/src/daemons/cpglockdump.c |    8 ++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)
+ create mode 100644 rgmanager/src/daemons/cpglockdump.c
+
+diff --git a/rgmanager/src/daemons/Makefile b/rgmanager/src/daemons/Makefile
+index 61ae6e4..336b6cf 100644
+--- a/rgmanager/src/daemons/Makefile
++++ b/rgmanager/src/daemons/Makefile
+@@ -2,11 +2,12 @@ TARGET1= rgmanager
+ TARGET2= rg_test
+ TARGET3= clurgmgrd
+ TARGET4= cpglockd
++TARGET5= cpglockdump
+ 
+-SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4)
++SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4) $(TARGET5)
+ SBINSYMT=$(TARGET3)
+ 
+-all: depends ${TARGET1} ${TARGET2} ${TARGET3} $(TARGET4)
++all: depends ${TARGET1} ${TARGET2} ${TARGET3} $(TARGET4) $(TARGET5)
+ 
+ include ../../../make/defines.mk
+ include $(OBJDIR)/make/cobj.mk
+@@ -44,6 +45,8 @@ OBJS2=	test-noccs.o \
+ 
+ OBJS4=  cpglockd.o
+ 
++OBJS5=	cpglockdump.o
++
+ CFLAGS += -DSHAREDIR=\"${sharedir}\" -D_GNU_SOURCE
+ CFLAGS += -fPIC
+ CFLAGS += -I${ccsincdir} -I${cmanincdir} -I${dlmincdir} -I${logtincdir}
+@@ -105,6 +108,9 @@ ${TARGET4}: ${OBJS4} ${LDDEPS}
+ 	$(CC) -o $@ $^ $(CPG_LDFLAGS) $(CMAN_LDFLAGS) $(CCS_LDFLAGS) \
+ 			$(FENCED_LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS)
+ 
++${TARGET5}: ${OBJS5} ${LDDEPS}
++	$(CC) -o $@ $^ $(CPG_LDFLAGS)
++
+ check: rg_test
+ 	cd tests && ./runtests.sh
+ 
+diff --git a/rgmanager/src/daemons/cpglockdump.c b/rgmanager/src/daemons/cpglockdump.c
+new file mode 100644
+index 0000000..2750e4a
+--- /dev/null
++++ b/rgmanager/src/daemons/cpglockdump.c
+@@ -0,0 +1,8 @@
++#include <stdio.h>
++#include <cpglock.h>
++
++int
++main(int argc, char **argv)
++{
++	return cpg_lock_dump(stdout);
++}
+-- 
+1.7.7.6
+

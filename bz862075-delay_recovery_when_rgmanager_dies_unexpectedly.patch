@@ -1,0 +1,105 @@
+From 90a9c185e2cebc75dfed00c52bec000b82086300 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 14 Aug 2013 01:56:11 -0400
+Subject: [PATCH] rgmanager: Delay recovery when rgmanager dies unexpectedly
+
+Delay recovery to allow for a node on which rgmanager has died
+(or been killed) unexpectedly to be rebooted by the watchdog and
+be fenced. This fixes a problem that caused HA LVM resources to fail
+because they were being failed over to another node before the node
+on which they were originally running and on which rgmanager died was
+removed from the cluster.
+
+Resolves: rhbz#862075
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/include/members.h      |  1 +
+ rgmanager/src/clulib/members.c   | 17 +++++++++++++++++
+ rgmanager/src/daemons/rg_state.c | 29 ++++++++++++++++++++++++++++-
+ 3 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/include/members.h b/rgmanager/include/members.h
+index 09f7a9a..3ea8078 100644
+--- a/rgmanager/include/members.h
++++ b/rgmanager/include/members.h
+@@ -19,6 +19,7 @@ void member_set_state(int nodeid, int state);
+ int memb_count(cluster_member_list_t *ml);
+ int member_online(int nodeid);
+ int member_online_set(int **nodes, int *nodecount);
++int member_cluster_state(int nodeid);
+ int memb_online(cluster_member_list_t *ml, int nodeid);
+ int memb_online_name(cluster_member_list_t *ml, char *name);
+ int memb_name_to_id(cluster_member_list_t *ml, char *name);
+diff --git a/rgmanager/src/clulib/members.c b/rgmanager/src/clulib/members.c
+index 715fe39..fe22b40 100644
+--- a/rgmanager/src/clulib/members.c
++++ b/rgmanager/src/clulib/members.c
+@@ -266,6 +266,23 @@ member_online(int nodeid)
+ 	return ret;
+ }
+ 
++int member_cluster_state(int nodeid)
++{
++	cman_handle_t *h;
++	cman_node_t cnode;
++	int ret = -1;
++
++	h = cman_init(NULL);
++	if (!h)
++		return -1;
++
++	memset(&cnode, 0, sizeof(cnode));
++	cman_get_node(h, nodeid, &cnode);
++	ret = cnode.cn_member;
++	cman_finish(h);
++
++	return ret;
++}
+ 
+ cluster_member_list_t *
+ get_member_list(cman_handle_t h)
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 59454bf..448270e 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -616,8 +616,35 @@ svc_advise_start(rg_state_t *svcStatus, const char *svcName, int req)
+ 		}
+ 
+ 		/*
+-		 * Service is running but owner is down -> RG_EFAILOVER
++		 * Service is running but rgmanager on owner is down -> RG_EFAILOVER
+ 		 */
++		if (member_cluster_state(svcStatus->rs_owner) == 1) {
++			/* If the owner node is still a member of the cluster, rgmanager
++			 * may have crashed or have been sent SIGKILL. The
++			 * watchdog process may be in the process of rebooting the
++			 * node. If the node has fencing defined, we want to wait
++			 * for it to be fenced before trying to take over.
++			 */
++			int tries = 0;
++
++			logt_print(LOG_NOTICE,
++				"Waiting for node %d to reboot\n", svcStatus->rs_owner);
++
++			while (tries < 45 &&
++				   member_cluster_state(svcStatus->rs_owner) == 1)
++			{
++					++tries;
++					sleep(1);
++			}
++
++			logt_print(LOG_NOTICE,
++				"Done waiting for node %d; continuing\n", svcStatus->rs_owner);
++
++			/* If it's still a cluster member by now, the admin may be running
++			 * rgmanager with -w or may have also killed the watchdog process.
++			 */
++		}
++
+ 		svcStatus->rs_last_owner = svcStatus->rs_owner;
+ 		logt_print(LOG_NOTICE,
+ 		       "Taking over service %s from down member %s\n",
+-- 
+1.8.3.1
+

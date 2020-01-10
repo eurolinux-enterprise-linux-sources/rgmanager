@@ -1,0 +1,30 @@
+From 6563d1529e4929ad4094326da06ba1eb6b73c7c3 Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Mon, 1 Aug 2011 16:31:57 -0400
+Subject: [PATCH] rgmanager: Fix clusvcadm message when run with -F
+
+The new_owner was not being correctly set when enabling a service with
+-F when run without central processing enabled.
+
+Resolves: rhbz#727326
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/daemons/rg_state.c |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 5501b3f..23a4bec 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -2293,6 +2293,7 @@ handle_fd_start_req(char *svcName, int request, int *new_owner)
+ 
+ 		switch(ret) {
+ 		case RG_ESUCCESS:
++			*new_owner = target;
+ 		    	ret = RG_ESUCCESS;
+ 			goto out;
+ 		case RG_ERUN:
+-- 
+1.7.7.6
+

@@ -1,0 +1,33 @@
+From ff5569b44f106a518908d8a1c8c2791a09744ccd Mon Sep 17 00:00:00 2001
+From: "Fabio M. Di Nitto" <fdinitto@redhat.com>
+Date: Wed, 25 Apr 2012 05:21:51 +0200
+Subject: [PATCH] cpglockd: show that we are alive while waiting for
+ quorum (debug info)
+
+Signed-off-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Reviewed-by: Lon Hohberger <lhh@redhat.com>
+Reviewed-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    5 +++--
+ 1 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 2e35f7f..d4d43b0 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -248,9 +248,10 @@ wait_for_fencing_join(int nodeid)
+ 
+ static void
+ wait_for_quorum_formation(cman_handle_t ch) {
+-	logt_print(LOG_DEBUG, "Waiting for quorum to form\n");
+-	while (!shutdown_pending && !(cluster_quorate = cman_is_quorate(ch)))
++	while (!shutdown_pending && !(cluster_quorate = cman_is_quorate(ch))) {
++		logt_print(LOG_DEBUG, "Waiting for quorum to form\n");
+ 		sleep(1);
++	}
+ 	logt_print(LOG_DEBUG, "Quorum formed\n");
+ }
+ 
+-- 
+1.7.7.6
+

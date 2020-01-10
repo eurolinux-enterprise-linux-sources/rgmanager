@@ -1,0 +1,31 @@
+From e01a564837cc5f5310a046da3c71f995c301e649 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Mon, 14 May 2012 10:34:48 -0400
+Subject: [PATCH] cpglockd: Fix a hang triggered when fencing completes in
+ less than 1s
+
+Acked-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/cpglockd.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/daemons/cpglockd.c b/rgmanager/src/daemons/cpglockd.c
+index 1a5832c..95cb371 100644
+--- a/rgmanager/src/daemons/cpglockd.c
++++ b/rgmanager/src/daemons/cpglockd.c
+@@ -1655,9 +1655,9 @@ main(int argc, char **argv)
+ 				lft = fn.last_fenced_time;
+ 			}
+ 
+-			if (lft > pf_node->fail_time) {
++			if (lft >= pf_node->fail_time) {
+ 				logt_print(LOG_DEBUG,
+-					"Fencing for node %d finished at %ld (>%ld)\n",
++					"Fencing for node %d finished at %ld (lost at %ld)\n",
+ 					pf_node->nodeid, lft, pf_node->fail_time);
+ 				list_remove(&pending_fencing, pf_node);
+ 				free(pf_node);
+-- 
+1.7.7.6
+

@@ -1,0 +1,45 @@
+From 2353fc5a8b4f590d97e10e0c6cd2c91506eb853a Mon Sep 17 00:00:00 2001
+From: Lon Hohberger <lhh@redhat.com>
+Date: Thu, 5 Jan 2012 09:03:28 -0500
+Subject: [PATCH] rgmanager: Fix call to service_status()
+
+This patch simply fixes the calls to service_status(), the
+s_trans variable was being incorrectly set.
+
+Resolves: rhbz#743218
+
+Signed-off-by: Lon Hohberger <lhh@redhat.com>
+---
+ rgmanager/src/resources/default_event_script.sl |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/resources/default_event_script.sl b/rgmanager/src/resources/default_event_script.sl
+index 763201d..f3b35cd 100644
+--- a/rgmanager/src/resources/default_event_script.sl
++++ b/rgmanager/src/resources/default_event_script.sl
+@@ -519,7 +519,7 @@ define default_service_event_handler()
+ 			continue;
+ 		}
+ 
+-		(d_trans,,,, owner, state) = service_status(services[x], 1);
++		(d_trans,,,,, owner, state) = service_status(services[x], 1);
+ 		if ((service_state == "started") and (owner < 0) and
+ 		    (state == "stopped")) {
+ 			info("Dependency met; starting ", services[x]);
+@@ -537,9 +537,12 @@ define default_service_event_handler()
+ 			% as above is running and the dependent service was
+ 			% started at or after the service, then stopping it
+ 			% will result in unwanted service outage.
+-			(s_trans,,,, s_state) = service_status(service_name);
++			(s_trans,,,,,, s_state) = service_status(service_name, 1);
+ 			if ((s_state == "started") and (state == "started") and
+ 			    (d_trans >= s_trans)) {
++				%debug("S:", service_name, " trans ", s_trans);
++				%debug("D:", services[x], " trans ", d_trans);
++
+ 				debug("Skipping ", services[x],
+ 				      "; restart not needed");
+ 				continue;
+-- 
+1.7.7.6
+

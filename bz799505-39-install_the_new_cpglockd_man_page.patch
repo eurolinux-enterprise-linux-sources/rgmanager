@@ -1,0 +1,28 @@
+From 9743f3742d4fab72320c9ce726c15b4c9b0abd80 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 1 May 2012 12:49:08 -0400
+Subject: [PATCH] rgmanager: Install the new cpglockd man page
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+Acked-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+---
+ rgmanager/man/Makefile |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/rgmanager/man/Makefile b/rgmanager/man/Makefile
+index 0d8f3aa..4d6a1dd 100644
+--- a/rgmanager/man/Makefile
++++ b/rgmanager/man/Makefile
+@@ -5,7 +5,8 @@ MANTARGET= \
+ 	rgmanager.8 \
+ 	clurgmgrd.8 \
+ 	clustat.8 \
+-	clusvcadm.8
++	clusvcadm.8 \
++	cpglockd.8
+ 
+ include ../../make/defines.mk
+ include $(OBJDIR)/make/install.mk
+-- 
+1.7.7.6
+

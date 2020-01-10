@@ -1,0 +1,81 @@
+commit b879d60438c33353f729d116ed332bf9e79c4692
+Author: Yevheniy Demchenko <zheka@uvt.cz>
+Date:   Wed Jul 6 13:38:09 2011 -0400
+
+    rgmanager: Fix segfault on config reload
+    
+    This issue was initially triggered by rpm package which wrongly
+    set executable flag on resource-script.metadata file in
+    /usr/share/cluster/. After running "cman_tool version -r" cluster
+    crashed, last log entry was:
+    
+      rgmanager[47960]: Loading Service Data
+    
+    Further investigation has shown, that this behaviour is triggered
+    always if any runnable file in /usr/share/cluster provides output
+    which is not well formed XML when run with the meta-data operation.
+    
+    This behaviour is probably caused by the wrong usage of
+    xmlInitParser()/XmlCleanUp() parser.
+    
+    Resolves: rhbz#692895
+    
+    Signed-off-by: Yevheniy Demchenko <zheka@uvt.cz>
+    Reviewed-by: Lon Hohberger <lhh@redhat.com>
+    Reviewed-by: Fabio M. Di Nitto <fdinitto@redhat.com>
+    Tested-by: Lon Hohberger <lhh@redhat.com>
+
+diff --git a/rgmanager/src/daemons/main.c b/rgmanager/src/daemons/main.c
+index a3ab7c4..3c39c46 100644
+--- a/rgmanager/src/daemons/main.c
++++ b/rgmanager/src/daemons/main.c
+@@ -1034,6 +1034,7 @@ main(int argc, char **argv)
+ 	   We know we're quorate.  At this point, we need to
+ 	   read the resource group trees from ccsd.
+ 	 */
++	xmlInitParser();
+ 	configure_rgmanager(-1, debug, &cluster_timeout);
+ 	logt_print(LOG_NOTICE, "Resource Group Manager Starting\n");
+ 
+@@ -1114,6 +1115,7 @@ main(int argc, char **argv)
+ 	if (rg_initialized())
+ 		cleanup(cluster_ctx);
+ 	rv = 0;
++	xmlCleanupParser();
+ out_ls:
+ 	clu_lock_finished(rgmanager_lsname);
+ 
+diff --git a/rgmanager/src/daemons/resrules.c b/rgmanager/src/daemons/resrules.c
+index 41bb6e8..142cfcd 100644
+--- a/rgmanager/src/daemons/resrules.c
++++ b/rgmanager/src/daemons/resrules.c
+@@ -1133,7 +1133,6 @@ load_resource_rules(const char *rpath, resource_rule_t **rules)
+ 	if (!dir)
+ 		return -1;
+ 
+-	xmlInitParser();
+ 	while ((de = readdir(dir))) {
+ 		
+ 		fn = basename(de->d_name);
+@@ -1171,7 +1170,6 @@ load_resource_rules(const char *rpath, resource_rule_t **rules)
+    			load_resource_rulefile(path, rules);
+   		}
+ 	}
+-	xmlCleanupParser();
+ 
+ 	closedir(dir);
+ 
+diff --git a/rgmanager/src/daemons/rg_locks.c b/rgmanager/src/daemons/rg_locks.c
+index f2d1050..14bd241 100644
+--- a/rgmanager/src/daemons/rg_locks.c
++++ b/rgmanager/src/daemons/rg_locks.c
+@@ -115,9 +115,7 @@ ccs_lock(void)
+ #else /* No ccs support */
+ {
+ 	pthread_mutex_lock(&_ccs_mutex);
+-	xmlInitParser();
+        	ccs_doc = xmlParseFile(conffile);
+-	xmlCleanupParser();
+ 	if (!ccs_doc)
+ 		return -1;
+ 	return 0;
