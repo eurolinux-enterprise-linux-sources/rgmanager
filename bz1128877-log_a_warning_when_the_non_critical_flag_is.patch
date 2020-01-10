@@ -1,0 +1,32 @@
+From 18d4adea1db67ae70ccf68ac9260a9d59e88b0e7 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 3 Mar 2015 14:35:20 -0500
+Subject: [PATCH] rgmanager: Log a warning when the non-critical flag is
+ cleared
+
+Log a warning to syslog when the non-critial flag is cleared
+because of multiple references.
+
+Resolves: rhbz#1128877
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/restree.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/rgmanager/src/daemons/restree.c b/rgmanager/src/daemons/restree.c
+index bc98aa6..1a649a7 100644
+--- a/rgmanager/src/daemons/restree.c
++++ b/rgmanager/src/daemons/restree.c
+@@ -710,6 +710,8 @@ do_load_resource(int ccsfd, char *base,
+ 	if (curres->r_refs > 1 &&
+ 	    (curres->r_flags & RF_NON_CRITICAL)) {
+ 		res_build_name(tok, sizeof(tok), curres);
++		logt_print(LOG_WARNING, "Non-critical flag for %s is being "
++                        "cleared due to multiple references.\n", tok);
+ 		printf("Non-critical flag for %s is being cleared due to multiple references.\n", tok);
+ 		curres->r_flags &= ~RF_NON_CRITICAL;
+ 	}
+-- 
+2.1.0
+

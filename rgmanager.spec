@@ -16,7 +16,7 @@
 Name: rgmanager
 Summary: Open Source HA Resource Group Failover for Red Hat Cluster
 Version: 3.0.12.1
-Release: 21%{?alphatag:.%{alphatag}}%{?dist}
+Release: 22%{?alphatag:.%{alphatag}}%{?dist}
 License: GPLv2+ and LGPLv2+
 Group: System Environment/Base
 URL: http://sources.redhat.com/cluster/wiki/
@@ -100,6 +100,9 @@ Patch75: bz1033162-fix_rg_test_exit_status_on_failures.patch
 Patch76: bz1036652-resrules_make_expand_time_buffer_less.patch
 Patch77: bz1053739-fix_error_logging_when_building_the_resource.patch
 Patch78: bz982820-add_an_option_to_reboot_on_pid_exhaustion.patch
+Patch79: bz1079207-fix_potential_null_ptr_deref_in_clustat.patch
+Patch80: bz1128877-log_a_warning_when_the_non_critical_flag_is.patch
+Patch81: bz1151199-don_t_restart_locally_if_failover_domain.patch
 
 ## runtime
 
@@ -204,6 +207,9 @@ ExclusiveArch: i686 x86_64
 %patch76 -p1 -b .bz1036652.1
 %patch77 -p1 -b .bz1053739.1
 %patch78 -p1 -b .bz982820.1
+%patch79 -p1 -b .bz1079207.1
+%patch80 -p1 -b .bz1128877.1
+%patch81 -p1 -b .bz1151199.1
 
 %build
 ./configure \
@@ -258,6 +264,14 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/cpglockd
 
 %changelog
+* Tue Mar 03 2015 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-22
+- rgmanager: Fix potential NULL ptr deref in clustat
+  Resolves: rhbz#1079207
+- rgmanager: Log a warning when the non-critical flag is
+  Resolves: rhbz#1128877
+- rgmanager: Don't restart locally if failover domain
+  Resolves: rhbz#1151199
+
 * Mon Jun 23 2014 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-21
 - rgmanager: Add an option to reboot on PID exhaustion
   Resolves: rhbz#982820

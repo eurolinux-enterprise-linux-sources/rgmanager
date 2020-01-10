@@ -1,0 +1,73 @@
+From 84e7c44a520b780d2bb78fc33e1f18430eab6d69 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 3 Mar 2015 14:31:23 -0500
+Subject: [PATCH] rgmanager: Don't restart locally if failover domain
+ prohibits it
+
+Prevent a resource from restarting locally if failover domain
+membership should prohibit the resource from running on the node.
+
+Patch from John Ruemker <jruemker@redhat.com>
+
+Resolves: rhbz#1151199
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/rg_state.c | 32 +++++++++++++++++++++++++-------
+ 1 file changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 59454bf..2332ad8 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -1932,8 +1932,10 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
+ 
+ 	while (memb_count(allowed_nodes)) {
+ 		target = best_target_node(allowed_nodes, me, svcName, 1);
+-		if (target == me)
++		if (target == me) {
++			free_member_list(allowed_nodes);
+ 			goto exhausted;
++                }
+ 
+ 		retries = 0;
+ retry:
+@@ -2012,13 +2014,29 @@ retry:
+ 	 */
+ exhausted:
+ 	if (!rg_locked()) {
+-		logt_print(LOG_WARNING,
+-		       "#70: Failed to relocate %s; restarting locally\n",
+-		       svcName);
+-		if (svc_start(svcName, RG_START_RECOVER) == 0) {
+-			*new_owner = me;
+-			return RG_ERELO;
++        	/*
++	         * We may have originated the relocate request even if we are not
++        	 * eligible to run the service. Check if we are allowed to start  
++	         * locally. 
++        	 */
++		allowed_nodes = member_list();
++		if (node_should_start_safe(
++		    me, allowed_nodes, svcName) == FOD_ILLEGAL) {
++			logt_print(LOG_ERR, 
++				"Failed to relocate %s; giving up\n", 
++	                            svcName);
++		}
++		else {
++			logt_print(LOG_WARNING,
++		    	       "#70: Failed to relocate %s; restarting locally\n",
++			           svcName);
++			if (svc_start(svcName, RG_START_RECOVER) == 0) {
++				*new_owner = me;
++				free_member_list(allowed_nodes);
++				return RG_ERELO;
++			}
+ 		}
++	        free_member_list(allowed_nodes);
+ 	}
+ 
+ 	if (svc_stop(svcName, RG_STOP) != 0) {
+-- 
+2.1.0
+
