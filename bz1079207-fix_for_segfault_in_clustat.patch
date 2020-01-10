@@ -1,0 +1,32 @@
+From 2c3f60cd1af976bddcfe80fac81a17cc8975cd12 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 8 Nov 2016 09:39:49 -0500
+Subject: [PATCH] rgmanager: Fix for segfault in clustat
+
+Additional fix for possible fix in clustat.
+
+Resolves: rhbz#1079207
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/utils/clustat.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/rgmanager/src/utils/clustat.c b/rgmanager/src/utils/clustat.c
+index 7688bbd..bbbd627 100644
+--- a/rgmanager/src/utils/clustat.c
++++ b/rgmanager/src/utils/clustat.c
+@@ -61,6 +61,11 @@ member_id_sort(const void *left, const void *right)
+ 	cman_node_t *l = (cman_node_t *)left;
+ 	cman_node_t *r = (cman_node_t *)right;
+ 
++	if (!l)
++		return 1;
++	if (!r)
++		return -1;
++
+ 	if (l->cn_nodeid < r->cn_nodeid)
+ 		return -1;
+ 	if (l->cn_nodeid > r->cn_nodeid)
+-- 
+2.5.5
+

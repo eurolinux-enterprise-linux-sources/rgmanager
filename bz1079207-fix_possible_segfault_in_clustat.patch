@@ -1,0 +1,34 @@
+From 24e142a12dd3b3976cfd2227f2a1844698f5fbbe Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Tue, 8 Nov 2016 09:31:34 -0500
+Subject: [PATCH] rgmanager: Fix possible segfault in clustat
+
+Fix a segfault in clustat that could occur when failing to receive
+the member list from ccs.
+
+Resolves: rhbz#1079207
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/utils/clustat.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/rgmanager/src/utils/clustat.c b/rgmanager/src/utils/clustat.c
+index 56e2a15..7688bbd 100644
+--- a/rgmanager/src/utils/clustat.c
++++ b/rgmanager/src/utils/clustat.c
+@@ -357,8 +357,10 @@ static cluster_member_list_t *ccs_member_list(void)
+ 	ccs_disconnect(desc);
+ 	ret->cml_members = nodes;
+ 
+-	qsort(ret->cml_members, ret->cml_count, sizeof(cman_node_t),
+-	      member_id_sort);
++	if (ret->cml_members) {
++		qsort(ret->cml_members, ret->cml_count, sizeof(cman_node_t),
++		      member_id_sort);
++	}
+ 
+ 	return ret;
+ }
+-- 
+2.5.5
+

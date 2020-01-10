@@ -16,7 +16,7 @@
 Name: rgmanager
 Summary: Open Source HA Resource Group Failover for Red Hat Cluster
 Version: 3.0.12.1
-Release: 26%{?alphatag:.%{alphatag}}%{?dist}.3
+Release: 33%{?alphatag:.%{alphatag}}%{?dist}
 License: GPLv2+ and LGPLv2+
 Group: System Environment/Base
 URL: http://sources.redhat.com/cluster/wiki/
@@ -108,12 +108,16 @@ Patch83: bz1128877-log_more_errors_during_resource_loading.patch
 Patch84: bz1278943-fix_bash_syntax_error_in_clunfslock.patch
 Patch85: bz1278943-2-clunfslock_copy_state_info_if_it_exists.patch
 Patch86: bz1128877-turn_down_log_level_on_debug_message.patch
-Patch87: bz1335412-rgmanager-Re-init-the-resource-tree-when-quorum-is-r.patch
-Patch88: bz1335412-2-re_init_the_vf_key_callbacks_after_losing_and.patch
-Patch89: bz1335412-3-forget_that_we_were_transition_master_on.patch
-Patch90: bz1335412-4-fix_missing_function_prototype.patch
-Patch91: bz1343345-check_for_null_when_attempting_to_access_the_member_list.patch
-Patch92: bz1344640-exit_more_gracefully_if_cman_stops_first.patch
+Patch87: bz1084053-rgmanager_re_init_the_resource_tree_when_quorum_is_regained.patch
+Patch88: bz1228170-check_for_null_when_attempting_to_access_the.patch
+Patch89: bz1084053-forgot_that_we_were_transition_master_on.patch
+Patch90: bz1084053-2-re_init_the_vf_key_callbacks_after_losing_and.patch
+Patch91: bz1342825-exit_more_gracefully_if_cman_stops_first.patch
+Patch92: bz1084053-fix_missing_function_prototype.patch
+Patch93: bz1367594-fix_segfault_when_quorum_is_lost.patch
+Patch94: bz1079207-fix_possible_segfault_in_clustat.patch
+Patch95: bz1079207-fix_for_segfault_in_clustat.patch
+Patch96: bz1414139.patch
 
 ## runtime
 
@@ -226,12 +230,16 @@ ExclusiveArch: i686 x86_64
 %patch84 -p1 -b .bz1278943.1
 %patch85 -p1 -b .bz1278943.2
 %patch86 -p1 -b .bz1128877.2
-%patch87 -p1 -b .bz1335412.1
-%patch88 -p1 -b .bz1335412.2
-%patch89 -p1 -b .bz1335412.3
-%patch90 -p1 -b .bz1335412.4
-%patch91 -p1 -b .bz1343345.1
-%patch92 -p1 -b .bz1344640.1
+%patch87 -p1 -b .bz1084053.1
+%patch88 -p1 -b .bz1228170.1
+%patch89 -p1 -b .bz1084053.1
+%patch90 -p1 -b .bz1084053.2
+%patch91 -p1 -b .bz1342825.1
+%patch92 -p1 -b .bz1084053.1
+%patch93 -p1 -b .bz1367594.1
+%patch94 -p1 -b .bz1079207.1
+%patch95 -p1 -b .bz1079207.2
+%patch96 -p1 -b .bz1414139.1
 
 %build
 ./configure \
@@ -286,21 +294,36 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/cpglockd
 
 %changelog
-* Fri Jun 10 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-26.3
-- rgmanager: Exit more gracefully if cman stops first when cpg locks are used
-  Resolves: rhbz#1344640
+* Wed Jan 18 2017 Jan Pokorny <jpokorny@redhat.com> - 3.0.12.1-33
+- rgmanager: Fix incorrect parsing of time-related values
+  Resolves: rhbz#1414139
 
-* Fri Jun 10 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-26.2
+* Tue Nov 08 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-32
+- rgmanager: Fix for segfault in clustat
+  Resolves: rhbz#1079207
+
+* Tue Nov 08 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-31
+- rgmanager: Fix possible segfault in clustat
+  Resolves: rhbz#1079207
+
+* Tue Nov 01 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-30
+- rgmanager: Fix segfault when quorum is lost
+  Resolves: rhbz#1367594
+
+* Thu Jun 09 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-29
 - rgmanager: Forget that we were transition master if quorum is dissolved
   rgmanager: Re-init the vf key callbacks after losing and recovering quorum
-  Resolves: rhbz#bz1335412
-- rgmanager: Check for NULL when attempting to access the member list
-  Resolves: rhbz#bz1343345
+  Resolves: rhbz#1084053
+- rgmanager: Exit more gracefully if cman stops first when cpg locks are used
+  Resolves: rhbz#1342825
 
-* Fri May 13 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-26.1
-- rgmanager: Reload the resource tree after quorum is regained
-  if central processing is enabled.
-  Resolves: rhbz#1335412
+* Mon Jun 06 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-28
+- rgmanager: Check for NULL when attempting to access the member list
+  Resolves: rhbz#1228170
+
+* Wed May 11 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-27
+- rgmanager: Re-init the resource tree when quorum is regained
+  Resolves: rhbz#1084053
 
 * Thu Mar 03 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-26
 - rgmanager: Turn down log level on debug message

@@ -1,0 +1,64 @@
+From 1f6781d4275dc7040f8edac80eda5364fc81b522 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jan=20Pokorn=C3=BD?= <jpokorny@redhat.com>
+Date: Tue, 17 Jan 2017 22:30:12 +0100
+Subject: [PATCH] rgmanager: resrules: fix incorrect parsing of expand_time
+ values
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+...due to accidental buffer overrun on terminal unqualified
+(without 's' suffix) seconds entry.
+
+Also enhance test-expand-time.c to check for this issue explicitly
+(previously, it was unable to reproduce the issue).
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1414139
+
+Signed-off-by: Jan Pokorný <jpokorny@redhat.com>
+---
+ rgmanager/src/daemons/resrules.c         |  6 +++++-
+ rgmanager/src/daemons/test-expand-time.c | 10 ++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/resrules.c b/rgmanager/src/daemons/resrules.c
+index c2cfdfa..9ffacc0 100644
+--- a/rgmanager/src/daemons/resrules.c
++++ b/rgmanager/src/daemons/resrules.c
+@@ -252,7 +252,11 @@ expand_time (const char *val)
+ 
+ 		/* Watch for overflow also here */
+ 		switch(*val) {
+-		case 0:
++		case '\0':
++			/* compensate for index increment to come;
++			   valid as we checked empty string on input already */
++			--val;
++			/* fall-through */
+ 		case 'S':
+ 		case 's':
+ 			break;
+diff --git a/rgmanager/src/daemons/test-expand-time.c b/rgmanager/src/daemons/test-expand-time.c
+index 0a15452..3e8e6b0 100644
+--- a/rgmanager/src/daemons/test-expand-time.c
++++ b/rgmanager/src/daemons/test-expand-time.c
+@@ -19,6 +19,16 @@ int main(int argc, char *argv[])
+ 		aux = strchr(buffer,'\n');
+ 		if (aux)
+ 			*aux = '\0';
++		printf("Really read: %s\n", buffer);
++		if (aux) {
++			if (sizeof(buffer) > aux - buffer + 3) {
++				/* Check also for accidental overrun:
++				   https://bugzilla.redhat.com/1414139 */
++				*++aux = '9';  /* bad case: modifies output */
++				*++aux = 's';  /* rescues from the bad case */
++				*++aux = '\0'; /* ...together with this */
++			}
++		}
+ 		printf("Expanded   : %d\n", expand_time(buffer));
+ 	}
+ 	return EXIT_SUCCESS;
+-- 
+2.4.11
+
