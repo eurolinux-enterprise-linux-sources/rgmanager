@@ -1,0 +1,30 @@
+From 88fc428a365f44fc366cd2ab207648ecd98ede4e Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 3 Feb 2016 17:25:31 -0500
+Subject: [PATCH] rgmanager: clunfslock: copy state info if it exists
+
+Copy state info from /var/lib/nfs/statd/sm if it exists.
+
+Resolves: rhbz#1278943
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/utils/clunfslock.sh | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/rgmanager/src/utils/clunfslock.sh b/rgmanager/src/utils/clunfslock.sh
+index 5ac77d9..699d825 100644
+--- a/rgmanager/src/utils/clunfslock.sh
++++ b/rgmanager/src/utils/clunfslock.sh
+@@ -33,6 +33,9 @@ add-client()
+ 	while read dev mp; do
+ 		[ -d "$mp/.clumanager/statd/sm" ] || \
+ 			mkdir -p $mp/.clumanager/statd/sm
++		if [ -f "/var/lib/nfs/statd/sm/$1" ]; then
++			cp /var/lib/nfs/statd/sm/$1 $mp/.clumanager/statd/sm/$1
++		fi
+ 		touch $mp/.clumanager/statd/sm/$1
+ 	done < <(clustered_mounts)
+ }
+-- 
+2.4.3
+

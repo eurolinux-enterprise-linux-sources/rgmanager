@@ -1,0 +1,32 @@
+From 06bf9a0c673587df712b780697cff1a8fd03923d Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 3 Feb 2016 17:24:29 -0500
+Subject: [PATCH] rgmanager: Fix bash syntax error in clunfslock
+
+Fix a syntax error in the clunfslock
+
+Resolves: rhbz#1278943
+
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/utils/clunfslock.sh | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/utils/clunfslock.sh b/rgmanager/src/utils/clunfslock.sh
+index 67b2d6d..5ac77d9 100644
+--- a/rgmanager/src/utils/clunfslock.sh
++++ b/rgmanager/src/utils/clunfslock.sh
+@@ -40,7 +40,9 @@ add-client()
+ 
+ del-client()
+ {
+-	while read $dev $mp; do
++	declare dev mp
++
++	while read dev mp; do
+ 		[ -d "$mp/.clumanager/statd/sm" ] || \
+ 			mkdir -p $mp/.clumanager/statd/sm
+ 		rm -f $mp/.clumanager/statd/sm/$1
+-- 
+2.4.3
+

@@ -1,0 +1,55 @@
+From abecae3e5bad85cd4d46287a4d6e90c0f803dc5b Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 20 Jan 2016 09:33:08 -0500
+Subject: [PATCH] rgmanager: Don't relocate a service if policy should prevent it
+
+Resolves: rhbz#1197122
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/rg_state.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/rg_state.c b/rgmanager/src/daemons/rg_state.c
+index 2332ad8..fe5d99d 100644
+--- a/rgmanager/src/daemons/rg_state.c
++++ b/rgmanager/src/daemons/rg_state.c
+@@ -1413,6 +1413,9 @@ _svc_stop(const char *svcName, int req, int recover, uint32_t newstate)
+ 			logt_print(LOG_ERR, "#52: Failed changing RG status\n");
+ 			return RG_EFAIL;
+ 		}
++
++		rg_unlock(&lockp);
++		return RG_ESUCCESS;
+ 	} 
+ 
+ 	logt_print(LOG_NOTICE, "Stopping service %s\n", svcName);
+@@ -2065,6 +2068,7 @@ handle_start_req(char *svcName, int req, int *new_owner)
+ 	int ret, tolerance = FOD_BEST;
+ 	cluster_member_list_t *membership;
+ 	int need_check, actual_failure = 0;
++	char policy[20];
+   
+  	/* When we get an enable req. for a migratory service, 
+  	   check other nodes to see if they are already running
+@@ -2160,8 +2164,17 @@ handle_start_req(char *svcName, int req, int *new_owner)
+ relocate:
+ 	/*
+ 	 * OK, it failed to start - but succeeded to stop.  Now,
+-	 * we should relocate the service.
++	 * we should relocate the service, unless the policy 
++	 * calls for it to be disabled.
+ 	 */
++	get_recovery_policy(svcName, policy, sizeof(policy));
++	if (strstr(policy, "disable")) {
++		logt_print(LOG_NOTICE,
++			   "Starting service %s failed; disabling "
++			   "due to recovery policy\n", svcName);
++		return svc_disable(svcName);
++	}
++
+ 	if (actual_failure)
+ 		logt_print(LOG_WARNING, "#71: Relocating failed service %s\n",
+ 	       	       svcName);
+-- 
+2.4.3
+

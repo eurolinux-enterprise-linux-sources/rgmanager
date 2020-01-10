@@ -16,7 +16,7 @@
 Name: rgmanager
 Summary: Open Source HA Resource Group Failover for Red Hat Cluster
 Version: 3.0.12.1
-Release: 22%{?alphatag:.%{alphatag}}%{?dist}
+Release: 26%{?alphatag:.%{alphatag}}%{?dist}
 License: GPLv2+ and LGPLv2+
 Group: System Environment/Base
 URL: http://sources.redhat.com/cluster/wiki/
@@ -103,6 +103,11 @@ Patch78: bz982820-add_an_option_to_reboot_on_pid_exhaustion.patch
 Patch79: bz1079207-fix_potential_null_ptr_deref_in_clustat.patch
 Patch80: bz1128877-log_a_warning_when_the_non_critical_flag_is.patch
 Patch81: bz1151199-don_t_restart_locally_if_failover_domain.patch
+Patch82: bz1197122-don_t_relocate_a_service_if_policy_should_prevent_it.patch
+Patch83: bz1128877-log_more_errors_during_resource_loading.patch
+Patch84: bz1278943-fix_bash_syntax_error_in_clunfslock.patch
+Patch85: bz1278943-2-clunfslock_copy_state_info_if_it_exists.patch
+Patch86: bz1128877-turn_down_log_level_on_debug_message.patch
 
 ## runtime
 
@@ -210,6 +215,11 @@ ExclusiveArch: i686 x86_64
 %patch79 -p1 -b .bz1079207.1
 %patch80 -p1 -b .bz1128877.1
 %patch81 -p1 -b .bz1151199.1
+%patch82 -p1 -b .bz1197122.1
+%patch83 -p1 -b .bz1128877.1
+%patch84 -p1 -b .bz1278943.1
+%patch85 -p1 -b .bz1278943.2
+%patch86 -p1 -b .bz1128877.2
 
 %build
 ./configure \
@@ -264,6 +274,23 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/cpglockd
 
 %changelog
+* Thu Mar 03 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-26
+- rgmanager: Turn down log level on debug message
+  Resolves: rhbz#1128877
+
+* Thu Feb 04 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-25
+- rgmanager: Fix bash syntax error in clunfslock
+  rgmanager: clunfslock: copy state info if it exists
+  Resolves: rhbz#1278943
+
+* Wed Jan 20 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-24
+- rgmanager: Log more errors during resource loading
+  Resolves: rhbz#1128877
+
+* Wed Jan 20 2016 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-23
+- rgmanager: Don't relocate a service if policy should prevent it
+  Resolves: rhbz#1197122
+
 * Tue Mar 03 2015 Ryan McCabe <rmccabe@redhat.com> - 3.0.12.1-22
 - rgmanager: Fix potential NULL ptr deref in clustat
   Resolves: rhbz#1079207

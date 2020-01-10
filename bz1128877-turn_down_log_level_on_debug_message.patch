@@ -1,0 +1,29 @@
+From c9c15879a9154620430ce36830086f14f5ca4462 Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Thu, 3 Mar 2016 11:21:28 -0500
+Subject: [PATCH] rgmanager: Turn down log level on debug message
+
+Only show the no resources found message when log level is set to debug.
+
+Resolves: rhbz#1128877
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/restree.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/restree.c b/rgmanager/src/daemons/restree.c
+index 0dc9ced..cc75719 100644
+--- a/rgmanager/src/daemons/restree.c
++++ b/rgmanager/src/daemons/restree.c
+@@ -587,7 +587,7 @@ do_load_resource(int ccsfd, char *base,
+ 		if (!curres) {
+ 			/* No ref and no new one inline == 
+ 			   no more of the selected type */
+-			logt_print(LOG_WARNING, "No resources found for %s\n", base);
++			logt_print(LOG_DEBUG, "No resources found for %s\n", base);
+ 			return 1;
+ 		}
+ 
+-- 
+2.4.3
+

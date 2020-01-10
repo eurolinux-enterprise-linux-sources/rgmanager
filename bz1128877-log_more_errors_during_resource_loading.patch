@@ -1,0 +1,42 @@
+From 80c3759685e76f375dd6b202915280e644ecb42c Mon Sep 17 00:00:00 2001
+From: Ryan McCabe <rmccabe@redhat.com>
+Date: Wed, 20 Jan 2016 09:54:07 -0500
+Subject: [PATCH] rgmanager: Log more errors during resource loading
+
+Log errors for the remaining cases where loading of resources fails.
+
+Resolves: rhbz#1128877
+Signed-off-by: Ryan McCabe <rmccabe@redhat.com>
+---
+ rgmanager/src/daemons/restree.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/rgmanager/src/daemons/restree.c b/rgmanager/src/daemons/restree.c
+index 1a649a7..0dc9ced 100644
+--- a/rgmanager/src/daemons/restree.c
++++ b/rgmanager/src/daemons/restree.c
+@@ -587,6 +587,7 @@ do_load_resource(int ccsfd, char *base,
+ 		if (!curres) {
+ 			/* No ref and no new one inline == 
+ 			   no more of the selected type */
++			logt_print(LOG_WARNING, "No resources found for %s\n", base);
+ 			return 1;
+ 		}
+ 
+@@ -630,8 +631,12 @@ do_load_resource(int ccsfd, char *base,
+ 	}
+ 
+ 	node = malloc(sizeof(*node));
+-	if (!node)
++	if (!node) {
++		logt_print(LOG_WARNING, "Out of memory when creating resource"
++		       " %s (type %s)\n", curres->r_attrs[0].ra_name,
++		       rule->rr_type);
+ 		return -1;
++	}
+ 
+ 	memset(node, 0, sizeof(*node));
+ 
+-- 
+2.4.3
+
